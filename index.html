@@ -119,7 +119,7 @@
       <p class="text-gray-400 text-base max-w-2xl mx-auto mb-10">Immobilier, fibre optique, carburants, démographie — toutes les données pour bien choisir où <em>vivre</em>.</p>
 
       <!-- OMNISEARCH -->
-      <div class="relative max-w-xl mx-auto" id="search-container">
+      <div class="relative max-w-2xl mx-auto" id="search-container">
         <div class="relative">
           <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -189,8 +189,8 @@
         <div>
           <span class="badge bg-indigo-500/20 text-indigo-300 mb-2 inline-block">COMPARAISON</span>
           <h2 class="text-base font-semibold text-white mb-1">Mode Comparaison côte à côte</h2>
-          <p class="text-sm text-gray-400 mb-3">Ouvrez une fiche ville, cliquez <strong class="text-indigo-300">Comparer</strong> — l'écran se divise en deux colonnes pour comparer immobilier, fibre et carburants.</p>
-          <a href="/explorer.html" class="inline-block text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg transition-colors font-medium">Explorer toutes les communes →</a>
+          <p class="text-sm text-gray-400 mb-3">Recherchez une commune ci-dessus, ouvrez sa fiche, puis cliquez <strong class="text-indigo-300">Comparer</strong> — l'écran se divise en deux colonnes pour comparer immobilier, fibre et carburants.</p>
+          <button onclick="document.getElementById('search-input').focus()" class="inline-block text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg transition-colors font-medium">Rechercher une commune →</button>
         </div>
       </div>
       <div class="bento-card bg-card border border-border rounded-2xl p-6">
@@ -447,9 +447,10 @@
 
   function buildVilleHTML(c) {
     const dens = c.surface_km2 && c.population ? Math.round(c.population / c.surface_km2) : null;
-    const fc = c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
-    const fb = c.fibre_pct >= 80 ? 'bg-emerald-500/10' : c.fibre_pct >= 40 ? 'bg-amber-500/10' : 'bg-rose-500/10';
-    const fbc= c.fibre_pct >= 80 ? 'bg-emerald-400'    : c.fibre_pct >= 40 ? 'bg-amber-400'    : 'bg-rose-400';
+    const fibreOk = c.fibre_pct != null;
+    const fc = !fibreOk ? 'text-gray-500'   : c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
+    const fb = !fibreOk ? 'bg-card'         : c.fibre_pct >= 80 ? 'bg-emerald-500/10' : c.fibre_pct >= 40 ? 'bg-amber-500/10' : 'bg-rose-500/10';
+    const fbc= !fibreOk ? 'bg-gray-700'     : c.fibre_pct >= 80 ? 'bg-emerald-400'    : c.fibre_pct >= 40 ? 'bg-amber-400'    : 'bg-rose-400';
 
     return `
     <div class="mb-6">
@@ -653,8 +654,9 @@
   // HTML compact pour les colonnes de comparaison
   function buildCompactHTML(c, side) {
     const isA = side === 'a';
-    const fc   = c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
-    const fbc  = c.fibre_pct >= 80 ? 'bg-emerald-400'   : c.fibre_pct >= 40 ? 'bg-amber-400'   : 'bg-rose-400';
+    const fibreOk = c.fibre_pct != null;
+    const fc   = !fibreOk ? 'text-gray-500' : c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
+    const fbc  = !fibreOk ? 'bg-gray-700'   : c.fibre_pct >= 80 ? 'bg-emerald-400'   : c.fibre_pct >= 40 ? 'bg-amber-400'   : 'bg-rose-400';
     const dens = c.surface_km2 && c.population ? Math.round(c.population / c.surface_km2) : null;
 
     return `
@@ -772,15 +774,11 @@
   // ── Carburants ────────────────────────────────────────────────────────────
 
   /**
-   * Formate un prix de carburant stocké en euros (float).
-   * Gestion des deux formats sources possibles :
-   *   · millièmes d'euro (ex: 1859 stocké directement) → divise par 1000
-   *   · euros décimaux (ex: 1.859 stocké directement)  → utilise tel quel
+   * Formate un prix de carburant stocké en euros décimaux (ex: 1.859).
    */
   function fmtFuelPrice(raw) {
     if (raw == null || raw === 0) return '—';
-    const price = raw > 10 ? raw / 1000 : raw;  // auto-détection
-    return price.toFixed(3) + ' €';
+    return Number(raw).toFixed(3) + ' €';
   }
 
   async function loadFuelIntoEl(elId, commune) {
