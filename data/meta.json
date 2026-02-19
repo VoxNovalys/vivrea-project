@@ -1,0 +1,11 @@
+{
+  "last_update": "2026-02-19T22:58:27.506136Z",
+  "nb_communes": 34875,
+  "version": "2.0",
+  "sources": {
+    "communes": "https://geo.api.gouv.fr",
+    "immobilier": "https://apidf-preprod.cerema.fr",
+    "fibre": "https://data.arcep.fr",
+    "carburants": "https://donnees.roulez-eco.fr/opendata/instantane"
+  }
+}
