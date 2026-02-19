@@ -10,7 +10,7 @@ import sys
 import time
 import logging
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime
 from typing import Optional
 
 import requests
@@ -32,6 +32,8 @@ GEO_API       = "https://geo.api.gouv.fr"
 DVF_API       = "https://apidf-preprod.cerema.fr/indicateurs/dv3f/communes"
 ARCEP_API     = "https://data.arcep.fr/api/3/action/datastore_search"
 FUEL_API      = "https://donnees.roulez-eco.fr/opendata/instantane"
+# Le flux est un ZIP contenant un XML PrixCarburants_instantane_YYYYMMDD.xml
+# L'URL retourne directement un application/zip
 
 DATA_DIR      = Path("data")
 DETAILS_DIR   = DATA_DIR / "details"
@@ -238,52 +240,74 @@ def fetch_fuel_prices() -> None:
     import io
 
     try:
-        r = SESSION.get(FUEL_API, timeout=60)
+        # Désactive le cache HTTP côté serveur
+        r = SESSION.get(FUEL_API, timeout=60, headers={"Cache-Control": "no-cache"})
         r.raise_for_status()
 
-        # Le flux est un ZIP contenant un XML
-        with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-            xml_filename = next(n for n in z.namelist() if n.endswith(".xml"))
-            xml_content = z.read(xml_filename)
+        content_type = r.headers.get("Content-Type", "")
+        log.info("Content-Type reçu : %s – taille : %.1f Ko", content_type, len(r.content) / 1024)
+
+        # Le flux peut être un ZIP ou directement du XML
+        xml_content: bytes | None = None
+
+        if b"PK" == r.content[:2]:  # signature ZIP
+            with zipfile.ZipFile(io.BytesIO(r.content)) as z:
+                xml_names = [n for n in z.namelist() if n.lower().endswith(".xml")]
+                if not xml_names:
+                    raise ValueError("Aucun fichier XML dans le ZIP carburants")
+                xml_content = z.read(xml_names[0])
+                log.info("XML extrait : %s", xml_names[0])
+        else:
+            xml_content = r.content  # flux XML direct
 
         root = ET.fromstring(xml_content)
         stations: list[dict] = []
 
         for pdv in root.findall("pdv"):
-            code_postal = pdv.get("cp", "")
-            ville       = pdv.findtext("ville") or ""
-            lat         = pdv.get("latitude")
-            lon         = pdv.get("longitude")
+            code_postal = (pdv.get("cp") or "").strip()
+            ville       = (pdv.findtext("ville") or "").strip()
+            lat_raw     = pdv.get("latitude")
+            lon_raw     = pdv.get("longitude")
 
             prix: dict[str, float] = {}
             for price_el in pdv.findall("prix"):
-                nom   = price_el.get("nom", "")
+                nom    = price_el.get("nom", "")
                 valeur = price_el.get("valeur")
                 if nom and valeur:
                     try:
-                        prix[nom] = float(valeur) / 1000  # centimes → €
+                        # L'API fournit les prix en millièmes d'euro (ex: 1759 → 1.759 €)
+                        prix[nom] = round(float(valeur) / 1000, 4)
                     except ValueError:
                         pass
 
-            if prix:
+            if prix and code_postal:
+                try:
+                    lat = round(float(lat_raw) / 100000, 6) if lat_raw else None
+                    lon = round(float(lon_raw) / 100000, 6) if lon_raw else None
+                except (ValueError, TypeError):
+                    lat = lon = None
                 stations.append({
                     "cp":    code_postal,
                     "ville": ville,
-                    "lat":   float(lat) / 100000 if lat else None,
-                    "lon":   float(lon) / 100000 if lon else None,
+                    "lat":   lat,
+                    "lon":   lon,
                     "prix":  prix,
                 })
 
-        payload = {
-            "updated_at": datetime.utcnow().isoformat() + "Z",
-            "nb_stations": len(stations),
-            "stations": stations,
-        }
-        write_json(FUEL_FILE, payload, compact=True)
-        log.info("Carburants : %d stations écrites", len(stations))
+        if not stations:
+            log.warning("Aucune station parsée – vérifiez le format XML.")
+        else:
+            payload = {
+                "updated_at":  datetime.utcnow().isoformat() + "Z",
+                "nb_stations": len(stations),
+                "stations":    stations,
+            }
+            write_json(FUEL_FILE, payload, compact=True)
+            log.info("Carburants : %d stations écrites dans %s", len(stations), FUEL_FILE)
 
     except Exception as e:
         log.error("Erreur flux carburants : %s", e)
+        # On ne plante pas le pipeline : les données existantes restent valides
 
 
 # ---------------------------------------------------------------------------

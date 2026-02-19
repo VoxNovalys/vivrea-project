@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VivreÀ – Découvrez votre prochaine commune</title>
   <meta name="description" content="Base de données exhaustive des 35 000 communes françaises. Prix immobilier, couverture fibre, carburants et bien plus." />
-  <meta name="keywords" content="communes françaises, immobilier, fibre optique, carburant, code postal, code INSEE" />
+  <meta name="keywords" content="communes françaises, immobilier, fibre optique, carburant, code postal, code INSEE, comparaison villes" />
   <meta property="og:title" content="VivreÀ – Toutes les communes françaises" />
   <meta property="og:description" content="Explorez les 35 000 communes de France : immobilier, fibre, carburants." />
   <meta property="og:type" content="website" />
@@ -36,30 +36,26 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
-  <!-- AdSense -->
+  <!-- AdSense – chargé de façon asynchrone, non bloquant -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2156803616781959" crossorigin="anonymous"></script>
 
   <style>
     body { background-color: #0a0a0a; }
 
-    /* Scrollbar dark */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #0a0a0a; }
     ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
-    /* Animation fade-in */
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(12px); }
       to   { opacity: 1; transform: translateY(0); }
     }
     .fade-up { animation: fadeUp 0.35s ease forwards; }
 
-    /* Glow indigo sur focus */
     .search-input:focus {
-      box-shadow: 0 0 0 2px #6366f1, 0 0 20px rgba(99,102,241,0.15);
+      box-shadow: 0 0 0 2px #6366f1, 0 0 24px rgba(99,102,241,0.18);
     }
 
-    /* Bento card hover */
     .bento-card {
       transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
@@ -68,7 +64,6 @@
       box-shadow: 0 8px 32px rgba(99,102,241,0.12);
     }
 
-    /* Skeleton loader */
     @keyframes shimmer {
       0%   { background-position: -400px 0; }
       100% { background-position: 400px 0; }
@@ -80,12 +75,10 @@
       border-radius: 6px;
     }
 
-    /* Dropdown suggestion */
     .suggestion-item:hover, .suggestion-item.active {
       background-color: rgba(99,102,241,0.15);
     }
 
-    /* Badge pill */
     .badge {
       font-size: 0.65rem;
       padding: 2px 8px;
@@ -94,120 +87,221 @@
       letter-spacing: 0.03em;
     }
 
-    /* Chart bar */
     .bar-fill {
-      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
     }
+
+    /* Comparaison : séparateur VS */
+    .vs-divider {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.5rem;
+      height: 2.5rem;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 50%;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #6366f1;
+      flex-shrink: 0;
+    }
+
+    /* Modal overlay */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Amazon block */
+    .amzn-card {
+      background: linear-gradient(135deg, rgba(255,153,0,0.06) 0%, rgba(99,102,241,0.06) 100%);
+      border: 1px solid rgba(255,153,0,0.2);
+    }
+
+    /* Nav active state */
+    .nav-link.active { color: #818cf8; }
   </style>
 </head>
 
 <body class="text-gray-200 font-sans antialiased min-h-screen" style="background:#0a0a0a">
 
   <!-- ════════════════════ HEADER ════════════════════ -->
-  <header class="sticky top-0 z-40 border-b border-border" style="background:rgba(10,10,10,0.85);backdrop-filter:blur(12px)">
-    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-      <a href="/" onclick="navigate('/',event)" class="flex items-center gap-2 group">
-        <span class="text-indigo-500 text-xl font-bold leading-none">V</span>
+  <header class="sticky top-0 z-40 border-b border-border" style="background:rgba(10,10,10,0.88);backdrop-filter:blur(14px)">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <a href="/" onclick="navigate('/',event)" class="flex items-center gap-2 shrink-0">
+        <span class="text-indigo-500 text-xl font-black leading-none">V</span>
         <span class="font-semibold text-white text-sm">Vivre<span class="text-indigo-400">À</span></span>
       </a>
       <nav class="hidden sm:flex items-center gap-6 text-xs text-gray-400">
-        <a href="/" onclick="navigate('/',event)" class="hover:text-indigo-400 transition-colors">Accueil</a>
-        <a href="/explorer" onclick="navigate('/explorer',event)" class="hover:text-indigo-400 transition-colors">Explorer</a>
-        <a href="/a-propos" onclick="navigate('/a-propos',event)" class="hover:text-indigo-400 transition-colors">À propos</a>
+        <a href="/"        onclick="navigate('/',event)"      class="nav-link hover:text-indigo-400 transition-colors">Accueil</a>
+        <a href="#tendances" onclick="focusSearch(event)"      class="nav-link hover:text-indigo-400 transition-colors">Explorer</a>
+        <a href="/a-propos" onclick="navigate('/a-propos',event)" class="nav-link hover:text-indigo-400 transition-colors">À propos</a>
       </nav>
-      <div id="worker-status" class="text-xs text-gray-600 hidden sm:block">Chargement…</div>
+      <div id="worker-status" class="text-xs text-gray-600 hidden sm:flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-gray-600 animate-pulse inline-block"></span>
+        Chargement…
+      </div>
     </div>
   </header>
 
   <!-- ════════════════════ PAGE CONTAINER ════════════════════ -->
-  <main id="app" class="max-w-6xl mx-auto px-4 py-8">
+  <main id="app" class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
     <!-- Vue dynamique injectée par le router -->
   </main>
 
   <!-- ════════════════════ FOOTER ════════════════════ -->
   <footer class="border-t border-border mt-16 py-8 text-center text-xs text-gray-600">
-    <p>© 2025 VivreÀ · Données : <a href="https://geo.api.gouv.fr" class="text-indigo-500 hover:underline" target="_blank">API Géo</a> · <a href="https://etalab.gouv.fr" class="text-indigo-500 hover:underline" target="_blank">Étalab</a> · <a href="https://arcep.fr" class="text-indigo-500 hover:underline" target="_blank">ARCEP</a></p>
+    <p>© 2025 VivreÀ · Données : <a href="https://geo.api.gouv.fr" class="text-indigo-500 hover:underline" target="_blank">API Géo</a> · <a href="https://etalab.gouv.fr" class="text-indigo-500 hover:underline" target="_blank">Étalab</a> · <a href="https://arcep.fr" class="text-indigo-500 hover:underline" target="_blank">ARCEP</a> · <a href="https://donnees.roulez-eco.fr" class="text-indigo-500 hover:underline" target="_blank">Roulez-Éco</a></p>
     <p class="mt-1">En tant que Partenaire Amazon, je réalise des bénéfices sur les achats éligibles. <a href="/mentions-legales" onclick="navigate('/mentions-legales',event)" class="text-indigo-500 hover:underline">Mentions légales</a></p>
   </footer>
+
+  <!-- ════════════════════ MODAL COMPARAISON ════════════════════ -->
+  <div id="compare-modal" class="modal-overlay hidden" onclick="closeCompareModal(event)">
+    <div class="bg-card border border-border rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold text-white text-sm">Choisir une ville à comparer</h3>
+        <button onclick="closeCompareModal()" class="text-gray-500 hover:text-white transition-colors text-lg leading-none">&times;</button>
+      </div>
+      <div class="relative">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <input id="compare-input" type="search" autocomplete="off" spellcheck="false"
+          class="search-input w-full bg-surface border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-all"
+          placeholder="Nom ou code postal de la ville…"
+        />
+      </div>
+      <ul id="compare-dropdown" class="mt-1 hidden bg-surface border border-border rounded-xl overflow-hidden max-h-56 overflow-y-auto"></ul>
+    </div>
+  </div>
 
   <!-- ════════════════════ TEMPLATES ════════════════════ -->
 
   <!-- Template : Page d'accueil -->
   <template id="tpl-home">
-    <section class="text-center py-16 fade-up">
+    <!-- Hero -->
+    <section class="text-center py-14 fade-up" id="tendances">
       <div class="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-1 text-xs text-indigo-400 mb-6">
         <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-        35 000 communes · Données en temps réel
+        35 000 communes · Données mises à jour chaque semaine
       </div>
-      <h1 class="text-4xl sm:text-5xl font-bold text-white mb-3 tracking-tight">
+      <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-3 tracking-tight leading-tight">
         Trouvez votre prochaine<br/>
         <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">commune idéale</span>
       </h1>
-      <p class="text-gray-400 text-base max-w-xl mx-auto mb-10">
+      <p class="text-gray-400 text-base max-w-2xl mx-auto mb-10">
         Immobilier, fibre optique, carburants, démographie — toutes les données pour bien choisir où <em>vivre</em>.
       </p>
 
       <!-- OMNISEARCH -->
-      <div class="relative max-w-lg mx-auto" id="search-container">
+      <div class="relative max-w-xl mx-auto" id="search-container">
         <div class="relative">
           <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           </span>
-          <input
-            id="search-input"
-            type="search"
-            class="search-input w-full bg-card border border-border rounded-xl pl-11 pr-4 py-3.5 text-sm text-white placeholder-gray-500 outline-none transition-all"
+          <input id="search-input" type="search" autocomplete="off" spellcheck="false"
+            class="search-input w-full bg-card border border-border rounded-2xl pl-11 pr-4 py-4 text-sm text-white placeholder-gray-500 outline-none transition-all"
             placeholder="Commune, code postal, code INSEE…"
-            autocomplete="off"
-            spellcheck="false"
           />
           <span id="search-loader" class="absolute right-4 top-1/2 -translate-y-1/2 hidden">
             <svg class="animate-spin w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
           </span>
         </div>
-        <!-- Dropdown suggestions -->
-        <ul id="search-dropdown" class="hidden absolute z-50 w-full mt-1 bg-card border border-border rounded-xl overflow-hidden shadow-2xl"></ul>
+        <ul id="search-dropdown" class="hidden absolute z-50 w-full mt-1.5 bg-card border border-border rounded-2xl overflow-hidden shadow-2xl"></ul>
       </div>
 
-      <!-- Stats rapides -->
-      <div class="grid grid-cols-3 gap-3 max-w-sm mx-auto mt-10 text-xs text-gray-500">
-        <div><span class="block text-lg font-semibold text-white" id="stat-communes">—</span>communes</div>
-        <div><span class="block text-lg font-semibold text-white">96</span>départements</div>
-        <div><span class="block text-lg font-semibold text-white">13</span>régions</div>
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-4 max-w-sm mx-auto mt-10 text-xs text-gray-500">
+        <div><span class="block text-2xl font-bold text-white" id="stat-communes">—</span>communes</div>
+        <div><span class="block text-2xl font-bold text-white">101</span>départements</div>
+        <div><span class="block text-2xl font-bold text-white">18</span>régions</div>
       </div>
     </section>
 
-    <!-- AdSense horizontal non-intrusif -->
-    <div class="my-8 flex justify-center">
-      <ins class="adsbygoogle" style="display:block;width:728px;height:90px" data-ad-client="ca-pub-2156803616781959" data-ad-slot="auto" data-ad-format="horizontal"></ins>
+    <!-- AdSense leaderboard – non bloquant -->
+    <div class="my-6 flex justify-center overflow-hidden">
+      <ins class="adsbygoogle" style="display:block;width:728px;height:90px;max-width:100%"
+           data-ad-client="ca-pub-2156803616781959"
+           data-ad-slot="auto"
+           data-ad-format="horizontal"
+           data-full-width-responsive="true"></ins>
     </div>
 
-    <!-- Bento grid des features -->
-    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
-      <div class="bento-card col-span-1 sm:col-span-2 bg-card border border-border rounded-2xl p-6">
-        <span class="badge bg-indigo-500/20 text-indigo-300 mb-3 inline-block">IMMOBILIER</span>
-        <h2 class="text-lg font-semibold text-white mb-1">Prix m² en temps réel</h2>
-        <p class="text-sm text-gray-400">Données DVF (Demandes de Valeurs Foncières) agrégées par commune — transactions réelles, pas des estimations.</p>
+    <!-- Bento features – 4 colonnes sur XL -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+
+      <!-- Large card : Immobilier (span 2 sur lg) -->
+      <div class="bento-card lg:col-span-2 bg-card border border-border rounded-2xl p-6 flex gap-5 items-start">
+        <div class="shrink-0 w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-400">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </div>
+        <div>
+          <span class="badge bg-indigo-500/20 text-indigo-300 mb-2 inline-block">IMMOBILIER</span>
+          <h2 class="text-base font-semibold text-white mb-1">Prix m² réels (DVF)</h2>
+          <p class="text-sm text-gray-400 leading-relaxed">Demandes de Valeurs Foncières agrégées par commune — transactions réelles enregistrées, pas des estimations algorithmiques.</p>
+        </div>
       </div>
+
+      <!-- Fibre -->
       <div class="bento-card bg-card border border-border rounded-2xl p-6">
-        <span class="badge bg-emerald-500/20 text-emerald-300 mb-3 inline-block">FIBRE</span>
-        <h2 class="text-lg font-semibold text-white mb-1">Couverture FTTH</h2>
-        <p class="text-sm text-gray-400">Taux de locaux raccordables à la fibre selon les données ARCEP officielles.</p>
+        <div class="w-9 h-9 rounded-xl bg-emerald-500/15 flex items-center justify-center text-emerald-400 mb-3">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.41 2 2 0 0 1 3.6 1.21h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.86-.86a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+        <span class="badge bg-emerald-500/20 text-emerald-300 mb-2 inline-block">FIBRE FTTH</span>
+        <h2 class="text-base font-semibold text-white mb-1">Couverture ARCEP</h2>
+        <p class="text-sm text-gray-400">Taux de locaux raccordables à la fibre optique, source officielle.</p>
       </div>
+
+      <!-- Carburant -->
       <div class="bento-card bg-card border border-border rounded-2xl p-6">
-        <span class="badge bg-amber-500/20 text-amber-300 mb-3 inline-block">CARBURANT</span>
-        <h2 class="text-lg font-semibold text-white mb-1">Prix instantanés</h2>
-        <p class="text-sm text-gray-400">Flux en temps réel des prix à la pompe près de chaque commune.</p>
+        <div class="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 mb-3">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13 5.4 5M7 13l-2 9h14l-2-9"/></svg>
+        </div>
+        <span class="badge bg-amber-500/20 text-amber-300 mb-2 inline-block">CARBURANT</span>
+        <h2 class="text-base font-semibold text-white mb-1">Prix instantanés</h2>
+        <p class="text-sm text-gray-400">Flux temps réel des prix à la pompe dans votre secteur.</p>
       </div>
+
+      <!-- Démographie -->
       <div class="bento-card bg-card border border-border rounded-2xl p-6">
-        <span class="badge bg-purple-500/20 text-purple-300 mb-3 inline-block">DÉMOGRAPHIE</span>
-        <h2 class="text-lg font-semibold text-white mb-1">Population & superficie</h2>
-        <p class="text-sm text-gray-400">Données INSEE pour les 35 000 communes, mises à jour chaque semaine.</p>
+        <div class="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-400 mb-3">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <span class="badge bg-purple-500/20 text-purple-300 mb-2 inline-block">DÉMOGRAPHIE</span>
+        <h2 class="text-base font-semibold text-white mb-1">Population INSEE</h2>
+        <p class="text-sm text-gray-400">35 000 communes avec surface, densité et code département.</p>
       </div>
+
+      <!-- Comparaison (span 2) -->
+      <div class="bento-card lg:col-span-2 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-2xl p-6 flex gap-5 items-start">
+        <div class="shrink-0 w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-400">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+        </div>
+        <div>
+          <span class="badge bg-indigo-500/20 text-indigo-300 mb-2 inline-block">NOUVEAU</span>
+          <h2 class="text-base font-semibold text-white mb-1">Mode Comparaison</h2>
+          <p class="text-sm text-gray-400 mb-3">Comparez deux communes côte à côte : immobilier, fibre, carburants, population.</p>
+          <button onclick="openCompareFromHome()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg transition-colors font-medium">
+            Comparer deux villes →
+          </button>
+        </div>
+      </div>
+
+      <!-- Open Data -->
       <div class="bento-card bg-card border border-border rounded-2xl p-6">
-        <span class="badge bg-rose-500/20 text-rose-300 mb-3 inline-block">OPEN DATA</span>
-        <h2 class="text-lg font-semibold text-white mb-1">100 % données ouvertes</h2>
-        <p class="text-sm text-gray-400">API Géo, Étalab, ARCEP, DVF — toutes les sources sont publiques et certifiées.</p>
+        <div class="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center text-rose-400 mb-3">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10A15.3 15.3 0 0 1 12 2z"/></svg>
+        </div>
+        <span class="badge bg-rose-500/20 text-rose-300 mb-2 inline-block">OPEN DATA</span>
+        <h2 class="text-base font-semibold text-white mb-1">100% sources ouvertes</h2>
+        <p class="text-sm text-gray-400">API Géo, DVF, ARCEP — données publiques et certifiées.</p>
       </div>
     </section>
   </template>
@@ -217,36 +311,37 @@
     <div id="ville-content" class="fade-up"></div>
   </template>
 
-  <!-- Template : Page À propos -->
+  <!-- Template : Comparaison -->
+  <template id="tpl-compare">
+    <div id="compare-content" class="fade-up"></div>
+  </template>
+
+  <!-- Template : À propos -->
   <template id="tpl-apropos">
-    <section class="max-w-2xl mx-auto fade-up">
+    <section class="max-w-3xl mx-auto fade-up">
       <h1 class="text-3xl font-bold text-white mb-4">À propos de VivreÀ</h1>
       <p class="text-gray-400 leading-relaxed mb-4">
         <strong class="text-white">VivreÀ</strong> est une plateforme open data dédiée aux 35 000 communes françaises. Notre objectif : centraliser toutes les informations utiles pour aider chacun à choisir où il souhaite s'installer.
       </p>
       <p class="text-gray-400 leading-relaxed mb-4">
-        Les données sont issues de sources officielles françaises : API Géo (DINUM), DVF (Étalab/Cerema), ARCEP pour la fibre, et le ministère de la Transition Écologique pour les carburants. Elles sont mises à jour automatiquement chaque semaine.
+        Les données sont issues de sources officielles françaises : API Géo (DINUM), DVF (Étalab/Cerema), ARCEP pour la fibre, et le ministère de la Transition Écologique pour les carburants. Elles sont mises à jour automatiquement chaque semaine via GitHub Actions.
       </p>
       <h2 class="text-xl font-semibold text-white mt-8 mb-3">Sources de données</h2>
       <ul class="space-y-2 text-sm text-gray-400">
-        <li>🗺️ <strong class="text-gray-200">Communes :</strong> <a href="https://geo.api.gouv.fr" class="text-indigo-400 hover:underline" target="_blank">geo.api.gouv.fr</a></li>
-        <li>🏠 <strong class="text-gray-200">Immobilier DVF :</strong> <a href="https://apidf-preprod.cerema.fr" class="text-indigo-400 hover:underline" target="_blank">apidf-preprod.cerema.fr</a></li>
-        <li>📡 <strong class="text-gray-200">Fibre ARCEP :</strong> <a href="https://data.arcep.fr" class="text-indigo-400 hover:underline" target="_blank">data.arcep.fr</a></li>
-        <li>⛽ <strong class="text-gray-200">Carburants :</strong> <a href="https://donnees.roulez-eco.fr" class="text-indigo-400 hover:underline" target="_blank">donnees.roulez-eco.fr</a></li>
+        <li><strong class="text-gray-200">Communes :</strong> <a href="https://geo.api.gouv.fr" class="text-indigo-400 hover:underline" target="_blank">geo.api.gouv.fr</a></li>
+        <li><strong class="text-gray-200">Immobilier DVF :</strong> <a href="https://apidf-preprod.cerema.fr" class="text-indigo-400 hover:underline" target="_blank">apidf-preprod.cerema.fr</a> (Cerema / Étalab)</li>
+        <li><strong class="text-gray-200">Fibre ARCEP :</strong> <a href="https://data.arcep.fr" class="text-indigo-400 hover:underline" target="_blank">data.arcep.fr</a></li>
+        <li><strong class="text-gray-200">Carburants :</strong> <a href="https://donnees.roulez-eco.fr" class="text-indigo-400 hover:underline" target="_blank">donnees.roulez-eco.fr</a> (Ministère Transition Écologique)</li>
       </ul>
     </section>
   </template>
 
   <!-- Template : Mentions légales -->
   <template id="tpl-mentions">
-    <section class="max-w-2xl mx-auto fade-up">
+    <section class="max-w-3xl mx-auto fade-up">
       <h1 class="text-3xl font-bold text-white mb-4">Mentions légales</h1>
-      <p class="text-gray-400 leading-relaxed mb-4">
-        Ce site est édité par Vox Novalys. Il utilise des cookies publicitaires via Google AdSense.
-      </p>
-      <p class="text-gray-400 leading-relaxed">
-        En tant que Partenaire Amazon, VivreÀ réalise des bénéfices sur les achats éligibles. Les liens Amazon présents sur ce site sont des liens d'affiliation (tag : <strong class="text-gray-200">vivrea-21</strong>).
-      </p>
+      <p class="text-gray-400 leading-relaxed mb-4">Ce site est édité par Vox Novalys. Il utilise des cookies publicitaires via Google AdSense (pub-2156803616781959).</p>
+      <p class="text-gray-400 leading-relaxed">En tant que Partenaire Amazon, VivreÀ réalise des bénéfices sur les achats éligibles. Les liens Amazon présents sur ce site sont des liens d'affiliation (tag : <strong class="text-gray-200">vivrea-21</strong>).</p>
     </section>
   </template>
 
@@ -254,76 +349,88 @@
   <script>
   'use strict';
 
-  // ── Constantes ──────────────────────────────────────────────────────────────
-  const BASE_URL   = 'https://vivrea.vox-novalys.fr';
-  const DATA_BASE  = './data';           // Chemin relatif pour GitHub Pages
-  const AMZN_TAG   = 'vivrea-21';
+  // ── Constantes ───────────────────────────────────────────────────────────────
+  const BASE_URL  = 'https://vivrea.vox-novalys.fr';
+  // Chemin absolu : fiable sur Vercel ET GitHub Pages déployés à la racine
+  const DATA_BASE = '/data';
+  const AMZN_TAG  = 'vivrea-21';
 
   // ── État global ──────────────────────────────────────────────────────────────
   const state = {
-    workerReady: false,
-    currentPath: null,
+    workerReady:  false,
+    currentPath:  null,
     pendingSearch: null,
+    // Comparaison
+    compareA:     null,   // commune source (lancée depuis une fiche)
   };
 
-  // ── Web Worker ───────────────────────────────────────────────────────────────
+  // ── Cache département ─────────────────────────────────────────────────────
+  const depCache = {};
+
+  // ── Web Worker (recherche off-thread) ────────────────────────────────────
   let worker = null;
-  let workerCallbacks = {};
-  let workerMsgId = 0;
+  const workerCallbacks = {};
 
   function initWorker() {
+    const WORKER_CODE = `
+      'use strict';
+      let idx=[],norm=[];
+      function normalize(s){return s.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim();}
+      function score(n,q){
+        if(n===q)return 100;
+        if(n.startsWith(q))return 80;
+        if(n.split(/[-\\s]+/).some(w=>w.startsWith(q)))return 60;
+        if(n.includes(q))return 40;
+        return 0;
+      }
+      self.onmessage=function(e){
+        const{type,payload}=e.data;
+        if(type==='INIT'){idx=payload;norm=idx.map(c=>normalize(c[0]));self.postMessage({type:'READY',payload:{size:idx.length}});return;}
+        if(type==='SEARCH'){
+          const{query,limit=8}=payload;const q=normalize(query);
+          if(q.length<1){self.postMessage({type:'RESULTS',payload:[]});return;}
+          const res=[];
+          for(let i=0;i<norm.length;i++){
+            const n=norm[i];const s=score(n,q);const cp=(idx[i][2]||'');
+            const cpMatch=cp.startsWith(q)&&q.length>=2;
+            if(s>0||cpMatch)res.push({nom:idx[i][0],code_insee:idx[i][1],cp:idx[i][2],pop:idx[i][3],_s:s||(cpMatch?20:0)});
+          }
+          res.sort((a,b)=>b._s-a._s||b.pop-a.pop);
+          self.postMessage({type:'RESULTS',payload:res.slice(0,limit).map(({_s,...r})=>r)});
+        }
+      };
+    `;
     try {
       worker = new Worker('./search.worker.js');
-    } catch (e) {
-      // Fallback inline worker (blob URL) pour les serveurs sans MIME correct
-      const blob = new Blob([`
-        'use strict';
-        let idx=[],norm=[];
-        function normalize(s){return s.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim();}
-        function score(n,q){if(n===q)return 100;if(n.startsWith(q))return 80;if(n.split(/[-\\s]+/).some(w=>w.startsWith(q)))return 60;if(n.includes(q))return 40;return 0;}
-        self.onmessage=function(e){
-          const {type,payload}=e.data;
-          if(type==='INIT'){idx=payload;norm=idx.map(c=>normalize(c[0]));self.postMessage({type:'READY',payload:{size:idx.length}});return;}
-          if(type==='SEARCH'){
-            const {query,limit=8}=payload;const q=normalize(query);
-            if(q.length<1){self.postMessage({type:'RESULTS',payload:[]});return;}
-            const res=[];
-            for(let i=0;i<norm.length;i++){
-              const n=norm[i];const s=score(n,q);const cp=idx[i][2]||'';
-              if(s>0||(cp.startsWith(q)&&q.length>=2)){res.push({nom:idx[i][0],code_insee:idx[i][1],cp:idx[i][2],pop:idx[i][3],_s:s||(cp.startsWith(q)?20:0)});}
-            }
-            res.sort((a,b)=>b._s-a._s||b.pop-a.pop);
-            self.postMessage({type:'RESULTS',payload:res.slice(0,limit).map(({_s,...r})=>r)});
-          }
-        };
-      `], { type: 'application/javascript' });
+    } catch (_) {
+      const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
       worker = new Worker(URL.createObjectURL(blob));
     }
-
-    worker.onmessage = function (e) {
+    worker.onmessage = (e) => {
       const { type, payload } = e.data;
       if (type === 'READY') {
         state.workerReady = true;
         const el = document.getElementById('worker-status');
-        if (el) { el.textContent = `${payload.size.toLocaleString('fr')} communes chargées`; el.classList.remove('hidden'); }
+        if (el) {
+          el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> ${payload.size.toLocaleString('fr')} communes`;
+        }
         const statEl = document.getElementById('stat-communes');
         if (statEl) statEl.textContent = payload.size.toLocaleString('fr');
-        if (state.pendingSearch) { doSearch(state.pendingSearch); state.pendingSearch = null; }
+        if (state.pendingSearch) { workerSearch(state.pendingSearch); state.pendingSearch = null; }
       }
       if (type === 'RESULTS') {
         const cb = workerCallbacks['SEARCH'];
         if (cb) { cb(payload); delete workerCallbacks['SEARCH']; }
+        const cb2 = workerCallbacks['COMPARE'];
+        if (cb2) { cb2(payload); delete workerCallbacks['COMPARE']; }
       }
     };
-
-    worker.onerror = function (err) {
-      console.error('[Worker] Erreur :', err);
-    };
+    worker.onerror = (err) => console.error('[Worker]', err);
   }
 
-  function workerSearch(query, limit = 8) {
+  function workerSearch(query, limit = 8, channel = 'SEARCH') {
     return new Promise((resolve) => {
-      workerCallbacks['SEARCH'] = resolve;
+      workerCallbacks[channel] = resolve;
       worker.postMessage({ type: 'SEARCH', payload: { query, limit } });
     });
   }
@@ -336,22 +443,21 @@
       const data = await r.json();
       worker.postMessage({ type: 'INIT', payload: data });
     } catch (e) {
-      console.warn('[VivreÀ] Index non disponible (mode dev ?)', e.message);
-      document.getElementById('worker-status').textContent = 'Index indisponible';
+      console.warn('[VivreÀ] Index indisponible :', e.message);
+      const el = document.getElementById('worker-status');
+      if (el) el.textContent = 'Index indisponible';
     }
   }
 
   // ── Routeur SPA ──────────────────────────────────────────────────────────────
-  function getRouteFromPath(path) {
-    const clean = path.replace(/\/$/, '') || '/';
-    if (clean === '/' || clean === '') return { view: 'home' };
-    if (clean.startsWith('/ville/')) {
-      const slug = clean.replace('/ville/', '');
-      return { view: 'ville', slug };
-    }
-    if (clean === '/a-propos')       return { view: 'apropos' };
-    if (clean === '/mentions-legales') return { view: 'mentions' };
-    if (clean === '/explorer')       return { view: 'home' };
+  function getRoute(path) {
+    const p = path.replace(/\/$/, '') || '/';
+    if (p === '/' || p === '')         return { view: 'home' };
+    if (p.startsWith('/ville/'))       return { view: 'ville',   slug: p.slice(7) };
+    if (p.startsWith('/comparer/'))    return { view: 'compare', codes: p.slice(10).split('/') };
+    if (p === '/a-propos')             return { view: 'apropos' };
+    if (p === '/mentions-legales')     return { view: 'mentions' };
+    if (p === '/explorer')             return { view: 'home' };
     return { view: '404' };
   }
 
@@ -362,38 +468,50 @@
   }
 
   function route(path) {
-    const { view, slug } = getRouteFromPath(path);
     state.currentPath = path;
     const app = document.getElementById('app');
     app.innerHTML = '';
+    // Scroll top
+    window.scrollTo({ top: 0, behavior: 'instant' });
 
-    if (view === 'home')    return renderHome(app);
-    if (view === 'ville')   return renderVille(app, slug);
-    if (view === 'apropos') return renderTemplate(app, 'tpl-apropos', 'VivreÀ – À propos', 'Découvrez la plateforme VivreÀ et ses sources de données.');
-    if (view === 'mentions') return renderTemplate(app, 'tpl-mentions', 'VivreÀ – Mentions légales', 'Mentions légales de la plateforme VivreÀ.');
+    const r = getRoute(path);
+    if (r.view === 'home')    return renderHome(app);
+    if (r.view === 'ville')   return renderVille(app, r.slug);
+    if (r.view === 'compare') return renderCompare(app, r.codes);
+    if (r.view === 'apropos') return renderStatic(app, 'tpl-apropos', 'VivreÀ – À propos', 'La plateforme des communes françaises.');
+    if (r.view === 'mentions') return renderStatic(app, 'tpl-mentions', 'VivreÀ – Mentions légales', '');
     return render404(app);
   }
 
   window.addEventListener('popstate', () => route(location.pathname));
 
-  // ── Rendu : Accueil ───────────────────────────────────────────────────────
-  function renderHome(container) {
-    setSEO('VivreÀ – Découvrez votre prochaine commune', 'Base de données exhaustive des 35 000 communes françaises. Prix immobilier, fibre, carburants.', BASE_URL + '/');
-    const tpl = document.getElementById('tpl-home');
-    container.appendChild(tpl.content.cloneNode(true));
-    // Init AdSense
-    try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
-    // Init recherche
-    initSearch();
-    // Stat communes
-    if (state.workerReady) {
-      // Le worker status est déjà défini
+  // ── Helpers nav ──────────────────────────────────────────────────────────────
+  function focusSearch(event) {
+    if (event) event.preventDefault();
+    const isHome = getRoute(location.pathname).view === 'home';
+    if (!isHome) { navigate('/'); setTimeout(() => { document.getElementById('search-input')?.focus(); }, 200); }
+    else {
+      document.getElementById('search-input')?.focus({ preventScroll: false });
+      document.getElementById('tendances')?.scrollIntoView({ behavior: 'smooth' });
     }
   }
 
-  // ── Init Omnisearch ───────────────────────────────────────────────────────
-  let searchDebounce = null;
-  let selectedIndex = -1;
+  // ── Rendu : Accueil ───────────────────────────────────────────────────────
+  function renderHome(container) {
+    setSEO(
+      'VivreÀ – Découvrez votre prochaine commune',
+      'Base de données exhaustive des 35 000 communes françaises. Prix immobilier, fibre, carburants.',
+      BASE_URL + '/',
+    );
+    const tpl = document.getElementById('tpl-home');
+    container.appendChild(tpl.content.cloneNode(true));
+    try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) {}
+    initSearch();
+  }
+
+  // ── Omnisearch ────────────────────────────────────────────────────────────
+  let debounce = null;
+  let selectedIdx = -1;
 
   function initSearch() {
     const input    = document.getElementById('search-input');
@@ -403,41 +521,32 @@
 
     input.addEventListener('input', () => {
       const q = input.value.trim();
-      clearTimeout(searchDebounce);
-      if (q.length < 1) { hideDropdown(dropdown); return; }
-      loader.classList.remove('hidden');
-      searchDebounce = setTimeout(async () => {
+      clearTimeout(debounce);
+      if (!q) { hideDD(dropdown); return; }
+      loader?.classList.remove('hidden');
+      debounce = setTimeout(async () => {
         if (!state.workerReady) { state.pendingSearch = q; return; }
         const results = await workerSearch(q, 8);
-        loader.classList.add('hidden');
-        renderDropdown(dropdown, results, input);
+        loader?.classList.add('hidden');
+        renderDD(dropdown, results, input, (r) => navigate(`/ville/${r.code_insee}`));
       }, 120);
     });
 
     input.addEventListener('keydown', (e) => {
       const items = dropdown.querySelectorAll('.suggestion-item');
-      if (e.key === 'ArrowDown') { e.preventDefault(); selectedIndex = Math.min(selectedIndex + 1, items.length - 1); updateActive(items); }
-      if (e.key === 'ArrowUp')   { e.preventDefault(); selectedIndex = Math.max(selectedIndex - 1, 0); updateActive(items); }
-      if (e.key === 'Enter') {
-        if (selectedIndex >= 0 && items[selectedIndex]) {
-          items[selectedIndex].click();
-        } else if (input.value.trim()) {
-          dropdown.querySelector('.suggestion-item')?.click();
-        }
-      }
-      if (e.key === 'Escape') hideDropdown(dropdown);
+      if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, items.length - 1); markActive(items); }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); markActive(items); }
+      if (e.key === 'Enter')     { (selectedIdx >= 0 ? items[selectedIdx] : dropdown.querySelector('.suggestion-item'))?.click(); }
+      if (e.key === 'Escape')    hideDD(dropdown);
     });
-
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('#search-container')) hideDropdown(dropdown);
-    });
+    document.addEventListener('click', (e) => { if (!e.target.closest('#search-container')) hideDD(dropdown); });
   }
 
-  function renderDropdown(dropdown, results, input) {
+  function renderDD(dropdown, results, input, onSelect) {
     dropdown.innerHTML = '';
-    selectedIndex = -1;
+    selectedIdx = -1;
     if (!results.length) {
-      dropdown.innerHTML = `<li class="px-4 py-3 text-sm text-gray-500">Aucun résultat pour "<em>${escapeHtml(input.value)}</em>"</li>`;
+      dropdown.innerHTML = `<li class="px-4 py-3 text-sm text-gray-500">Aucun résultat pour « <em>${escapeHtml(input.value)}</em> »</li>`;
       dropdown.classList.remove('hidden');
       return;
     }
@@ -446,111 +555,542 @@
       li.className = 'suggestion-item flex items-center justify-between px-4 py-2.5 cursor-pointer border-b border-border last:border-0 transition-colors';
       li.innerHTML = `
         <div class="flex items-center gap-3 min-w-0">
-          <span class="text-gray-500 text-xs w-3 shrink-0">${i + 1}</span>
+          <span class="text-gray-600 text-xs w-3 shrink-0">${i + 1}</span>
           <div class="min-w-0">
-            <span class="text-sm font-medium text-white">${highlightMatch(r.nom, input.value)}</span>
+            <span class="text-sm font-medium text-white">${highlight(r.nom, input.value)}</span>
             <span class="text-xs text-gray-500 ml-1">(${r.cp || '—'})</span>
           </div>
         </div>
         <div class="flex items-center gap-2 shrink-0 ml-3">
-          ${r.pop ? `<span class="badge bg-surface text-gray-400">${formatPop(r.pop)}</span>` : ''}
+          ${r.pop ? `<span class="badge bg-surface text-gray-400">${fmtPop(r.pop)}</span>` : ''}
           <span class="badge bg-indigo-500/20 text-indigo-300">${r.code_insee}</span>
-        </div>
-      `;
-      li.addEventListener('click', () => {
-        input.value = r.nom;
-        hideDropdown(dropdown);
-        navigate(`/ville/${r.code_insee}`);
-      });
+        </div>`;
+      li.addEventListener('click', () => { input.value = r.nom; hideDD(dropdown); onSelect(r); });
       dropdown.appendChild(li);
     });
     dropdown.classList.remove('hidden');
   }
 
-  function updateActive(items) {
-    items.forEach((el, i) => el.classList.toggle('active', i === selectedIndex));
-    if (items[selectedIndex]) items[selectedIndex].scrollIntoView({ block: 'nearest' });
+  function markActive(items) {
+    items.forEach((el, i) => el.classList.toggle('active', i === selectedIdx));
+    if (items[selectedIdx]) items[selectedIdx].scrollIntoView({ block: 'nearest' });
   }
 
-  function hideDropdown(dropdown) {
-    if (dropdown) { dropdown.classList.add('hidden'); dropdown.innerHTML = ''; }
-    selectedIndex = -1;
+  function hideDD(el) {
+    if (el) { el.classList.add('hidden'); el.innerHTML = ''; }
+    selectedIdx = -1;
   }
 
-  // ── Rendu : Fiche Ville ───────────────────────────────────────────────────
+  // ── Rendu : Fiche ville ───────────────────────────────────────────────────
   async function renderVille(container, codeOrSlug) {
-    const tpl = document.getElementById('tpl-ville');
-    container.appendChild(tpl.content.cloneNode(true));
-    const content = document.getElementById('ville-content');
+    document.getElementById('tpl-ville').content.cloneNode(true);
+    const wrap = document.createElement('div');
+    wrap.id = 'ville-content';
+    wrap.className = 'fade-up';
+    container.appendChild(wrap);
 
-    // Affichage skeleton
-    content.innerHTML = `
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        ${Array(6).fill('<div class="skeleton h-28 rounded-2xl"></div>').join('')}
-      </div>
-    `;
+    wrap.innerHTML = `<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">${Array(8).fill('<div class="skeleton h-24 rounded-2xl"></div>').join('')}</div>`;
 
     try {
-      // On détermine d'abord si c'est un code INSEE (5 chiffres) ou un slug
-      let commune = null;
-
-      if (/^\d{5}$/.test(codeOrSlug)) {
-        commune = await fetchCommuneByInsee(codeOrSlug);
-      } else {
-        commune = await fetchCommuneBySlug(codeOrSlug);
-      }
+      const commune = /^\d{5}$/.test(codeOrSlug)
+        ? await fetchByInsee(codeOrSlug)
+        : await fetchBySlug(codeOrSlug);
 
       if (!commune) {
-        content.innerHTML = `<p class="text-center text-gray-500 py-12">Commune introuvable : <strong class="text-white">${escapeHtml(codeOrSlug)}</strong></p>`;
+        wrap.innerHTML = `<p class="text-center text-gray-500 py-12">Commune introuvable : <strong>${escapeHtml(codeOrSlug)}</strong></p>`;
         return;
       }
 
       setSEO(
         `${commune.nom} (${commune.cp || commune.code_dep}) – VivreÀ`,
-        `Découvrez ${commune.nom} : immobilier, fibre, carburants et données INSEE.`,
+        `${commune.nom} : immobilier, fibre optique, carburants, démographie — toutes les données.`,
         `${BASE_URL}/ville/${commune.code_insee}`,
       );
 
-      content.innerHTML = buildVilleHTML(commune);
-      // AdSense inline
-      try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(e) {}
-      // Chargement carburants
-      loadLocalFuel(commune);
+      wrap.innerHTML = buildVilleHTML(commune);
+      try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) {}
+      loadFuel(commune);
 
-    } catch (e) {
-      content.innerHTML = `<p class="text-center text-red-400 py-12">Erreur lors du chargement : ${escapeHtml(e.message)}</p>`;
+    } catch (err) {
+      wrap.innerHTML = `<p class="text-center text-red-400 py-12">Erreur : ${escapeHtml(err.message)}</p>`;
     }
   }
 
-  async function fetchCommuneByInsee(code) {
-    // 1) Chercher dans les détails du département
+  // ── Rendu : Comparaison ───────────────────────────────────────────────────
+  async function renderCompare(container, codes) {
+    const wrap = document.createElement('div');
+    wrap.id = 'compare-content';
+    wrap.className = 'fade-up';
+    container.appendChild(wrap);
+
+    const [codeA, codeB] = codes;
+    if (!codeA || !codeB) {
+      wrap.innerHTML = `<p class="text-gray-500 text-center py-12">Deux codes INSEE requis.</p>`;
+      return;
+    }
+
+    wrap.innerHTML = `<div class="grid grid-cols-2 gap-4">${Array(6).fill('<div class="skeleton h-28 rounded-2xl"></div>').join('')}</div>`;
+
+    const [a, b] = await Promise.all([fetchByInsee(codeA), fetchByInsee(codeB)]);
+    if (!a || !b) {
+      wrap.innerHTML = `<p class="text-gray-500 text-center py-12">Une commune n'a pas été trouvée.</p>`;
+      return;
+    }
+
+    setSEO(
+      `Comparer ${a.nom} vs ${b.nom} – VivreÀ`,
+      `Comparaison ${a.nom} / ${b.nom} : immobilier, fibre, carburants.`,
+      `${BASE_URL}/comparer/${codeA}/${codeB}`,
+    );
+
+    const [fuelData] = await Promise.all([fetchJSON(`${DATA_BASE}/carburants.json`)]);
+    const fuelA = getFuelForCommune(fuelData, a);
+    const fuelB = getFuelForCommune(fuelData, b);
+
+    wrap.innerHTML = buildCompareHTML(a, b, fuelA, fuelB);
+    try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) {}
+  }
+
+  function buildCompareHTML(a, b, fuelA, fuelB) {
+    const FUEL_TYPES = ['SP95', 'SP98', 'Gazole', 'E10', 'E85'];
+
+    // Calcule les prix moyens par type carburant
+    function avgPrice(stations, type) {
+      const prices = stations.map(s => s.prix?.[type]).filter(Boolean);
+      if (!prices.length) return null;
+      return prices.reduce((s, v) => s + v, 0) / prices.length;
+    }
+
+    function winnerClass(valA, valB, higherIsBetter = false) {
+      if (valA == null || valB == null) return ['text-white', 'text-white'];
+      const better = higherIsBetter ? (valA >= valB) : (valA <= valB);
+      return better
+        ? ['text-emerald-400 font-bold', 'text-gray-400']
+        : ['text-gray-400', 'text-emerald-400 font-bold'];
+    }
+
+    const fibreClasses   = winnerClass(a.fibre_pct, b.fibre_pct, true);
+    const popClasses     = winnerClass(a.population, b.population, true);
+    const surfClasses    = ['text-white', 'text-white'];
+    const prixM2Classes  = winnerClass(a.immo?.prix_m2_median, b.immo?.prix_m2_median);
+    const loyerClasses   = winnerClass(a.immo?.loyer_median, b.immo?.loyer_median);
+
+    function fuelRow(type) {
+      const pA = avgPrice(fuelA, type);
+      const pB = avgPrice(fuelB, type);
+      const [cA, cB] = winnerClass(pA, pB);
+      return `
+        <tr class="border-b border-border/40 last:border-0">
+          <td class="py-2 text-xs text-gray-500 pr-2">${type}</td>
+          <td class="py-2 text-xs text-right ${cA}">${pA ? pA.toFixed(3) + ' €' : '—'}</td>
+          <td class="py-2 text-xs text-center text-gray-600">·</td>
+          <td class="py-2 text-xs text-left ${cB}">${pB ? pB.toFixed(3) + ' €' : '—'}</td>
+        </tr>`;
+    }
+
+    return `
+    <!-- En-tête comparaison -->
+    <div class="flex items-center gap-3 mb-6 flex-wrap">
+      <button onclick="navigate('/',event)" class="text-xs text-gray-500 hover:text-indigo-400 transition-colors">← Retour</button>
+      <h1 class="text-lg font-bold text-white flex items-center gap-3">
+        <a href="/ville/${a.code_insee}" onclick="navigate('/ville/${a.code_insee}',event)" class="hover:text-indigo-400 transition-colors">${escapeHtml(a.nom)}</a>
+        <span class="vs-divider">VS</span>
+        <a href="/ville/${b.code_insee}" onclick="navigate('/ville/${b.code_insee}',event)" class="hover:text-indigo-400 transition-colors">${escapeHtml(b.nom)}</a>
+      </h1>
+    </div>
+
+    <!-- Colonnes de comparaison -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+
+      <!-- Colonne A -->
+      <div class="space-y-4">
+        <div class="bento-card bg-card border border-indigo-500/30 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-indigo-400">${escapeHtml(a.nom)}</h2>
+            <span class="badge bg-indigo-500/20 text-indigo-300">${a.code_dep}</span>
+          </div>
+          ${compareStats(a, fibreClasses[0], popClasses[0], prixM2Classes[0], loyerClasses[0])}
+        </div>
+      </div>
+
+      <!-- Colonne B -->
+      <div class="space-y-4">
+        <div class="bento-card bg-card border border-purple-500/30 rounded-2xl p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-bold text-purple-400">${escapeHtml(b.nom)}</h2>
+            <span class="badge bg-purple-500/20 text-purple-300">${b.code_dep}</span>
+          </div>
+          ${compareStats(b, fibreClasses[1], popClasses[1], prixM2Classes[1], loyerClasses[1])}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tableau carburants commun -->
+    <div class="bento-card bg-card border border-border rounded-2xl p-5 mb-4">
+      <h2 class="text-sm font-semibold text-white mb-3">Prix carburants moyens <span class="text-gray-500 font-normal text-xs">(stations à proximité)</span></h2>
+      <table class="w-full">
+        <thead>
+          <tr class="text-xs text-gray-500 border-b border-border">
+            <th class="pb-2 text-left font-medium pr-2">Type</th>
+            <th class="pb-2 text-right font-medium text-indigo-400">${escapeHtml(a.nom)}</th>
+            <th class="pb-2 w-6"></th>
+            <th class="pb-2 text-left font-medium text-purple-400">${escapeHtml(b.nom)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${FUEL_TYPES.map(fuelRow).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- AdSense -->
+    <div class="my-6 flex justify-center">
+      <ins class="adsbygoogle" style="display:block;width:100%;max-width:728px;height:90px"
+           data-ad-client="ca-pub-2156803616781959" data-ad-slot="auto"
+           data-ad-format="auto" data-full-width-responsive="true"></ins>
+    </div>
+
+    <!-- Amazon : Déménagement & Installation -->
+    ${buildAmazonBlock(null, 'compare')}
+    `;
+  }
+
+  function compareStats(c, fibreClass, popClass, prixClass, loyerClass) {
+    return `
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Population</p>
+          <p class="font-bold ${popClass}">${c.population ? c.population.toLocaleString('fr') : '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Superficie</p>
+          <p class="font-bold text-white">${c.surface_km2 ? c.surface_km2.toLocaleString('fr') + ' km²' : '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Fibre FTTH</p>
+          <p class="font-bold ${fibreClass}">${c.fibre_pct != null ? c.fibre_pct + '%' : '—'}</p>
+          ${c.fibre_pct != null ? `<div class="mt-1 bg-black/20 rounded-full h-1"><div class="bar-fill h-1 rounded-full bg-indigo-400" style="width:${c.fibre_pct}%"></div></div>` : ''}
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Code postal</p>
+          <p class="font-bold text-white">${c.cp || '—'}</p>
+        </div>
+        ${c.immo ? `
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Prix m²</p>
+          <p class="font-bold ${prixClass}">${c.immo.prix_m2_median ? Math.round(c.immo.prix_m2_median).toLocaleString('fr') + ' €' : '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-gray-500 uppercase tracking-wider mb-0.5">Loyer/m²</p>
+          <p class="font-bold ${loyerClass}">${c.immo.loyer_median ? c.immo.loyer_median.toFixed(1) + ' €' : '—'}</p>
+        </div>` : '<div class="col-span-2 text-xs text-gray-600">Données immobilières indisponibles</div>'}
+      </div>`;
+  }
+
+  // ── Fiche HTML d'une ville ────────────────────────────────────────────────
+  function buildVilleHTML(c) {
+    const dens       = c.surface_km2 && c.population ? Math.round(c.population / c.surface_km2) : null;
+    const fc         = c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
+    const fb         = c.fibre_pct >= 80 ? 'bg-emerald-500/10' : c.fibre_pct >= 40 ? 'bg-amber-500/10' : 'bg-rose-500/10';
+    const fibreBarC  = c.fibre_pct >= 80 ? 'bg-emerald-400' : c.fibre_pct >= 40 ? 'bg-amber-400' : 'bg-rose-400';
+
+    return `
+    <!-- En-tête -->
+    <div class="mb-6">
+      <div class="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 class="text-3xl sm:text-4xl font-bold text-white">${escapeHtml(c.nom)}</h1>
+          <p class="text-gray-400 mt-1 text-sm">
+            Département&nbsp;<strong class="text-gray-300">${escapeHtml(c.code_dep)}</strong>
+            &nbsp;·&nbsp;INSEE&nbsp;<code class="text-indigo-300 font-mono">${escapeHtml(c.code_insee)}</code>
+            ${c.cp ? `&nbsp;·&nbsp;CP&nbsp;<code class="text-indigo-300 font-mono">${escapeHtml(c.cp)}</code>` : ''}
+          </p>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button onclick="copyInsee('${escapeHtml(c.code_insee)}')" id="btn-copy-insee"
+            class="text-xs border border-border rounded-lg px-3 py-1.5 text-gray-400 hover:text-white hover:border-indigo-500 transition-colors">
+            Copier INSEE
+          </button>
+          ${c.lat && c.lon ? `
+          <a href="https://www.google.com/maps?q=${c.lat},${c.lon}" target="_blank" rel="noopener"
+             class="text-xs border border-border rounded-lg px-3 py-1.5 text-gray-400 hover:text-white hover:border-indigo-500 transition-colors">
+            Carte ↗
+          </a>` : ''}
+          <button onclick="openCompareModal('${escapeHtml(c.code_insee)}','${escapeHtml(c.nom)}')"
+            class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-3 py-1.5 transition-colors font-medium flex items-center gap-1.5">
+            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+            Comparer
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bento KPIs – 4 cols sur lg -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+      <div class="bento-card bg-card border border-border rounded-2xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Population</p>
+        <p class="text-2xl font-bold text-white">${c.population ? c.population.toLocaleString('fr') : '—'}</p>
+        ${dens ? `<p class="text-xs text-gray-500 mt-1">${dens.toLocaleString('fr')} hab/km²</p>` : ''}
+      </div>
+      <div class="bento-card bg-card border border-border rounded-2xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Superficie</p>
+        <p class="text-2xl font-bold text-white">${c.surface_km2 ? c.surface_km2.toLocaleString('fr') : '—'}</p>
+        <p class="text-xs text-gray-500 mt-1">km²</p>
+      </div>
+      <div class="bento-card ${fb} border border-border rounded-2xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Fibre FTTH</p>
+        <p class="text-2xl font-bold ${fc}">${c.fibre_pct != null ? c.fibre_pct + '%' : '—'}</p>
+        <p class="text-xs text-gray-500 mt-1">locaux raccordables</p>
+        ${c.fibre_pct != null ? `<div class="mt-2 bg-black/20 rounded-full h-1.5"><div class="bar-fill h-1.5 rounded-full ${fibreBarC}" style="width:${c.fibre_pct}%"></div></div>` : ''}
+      </div>
+      <div class="bento-card bg-card border border-border rounded-2xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Code postal</p>
+        <p class="text-2xl font-bold text-white">${c.cp || '—'}</p>
+        ${c.codes_postaux?.length > 1 ? `<p class="text-xs text-gray-500 mt-1">+${c.codes_postaux.length - 1} autre(s)</p>` : ''}
+      </div>
+    </div>
+
+    <!-- Immobilier + Amazon affilié -->
+    ${c.immo ? `
+    <div class="bento-card bg-card border border-border rounded-2xl p-5 mb-4">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-white">Immobilier (DVF)</h2>
+        <span class="badge bg-indigo-500/20 text-indigo-300">${c.immo.annee_dvf || 'DVF'}</span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+        ${c.immo.prix_m2_median ? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Prix médian m²</p><p class="text-xl font-bold text-white">${Math.round(c.immo.prix_m2_median).toLocaleString('fr')} €</p></div>` : ''}
+        ${c.immo.loyer_median   ? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Loyer médian m²</p><p class="text-xl font-bold text-white">${c.immo.loyer_median.toFixed(1)} €</p></div>` : ''}
+        ${c.immo.nb_transactions ? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Transactions</p><p class="text-xl font-bold text-white">${c.immo.nb_transactions.toLocaleString('fr')}</p></div>` : ''}
+      </div>
+    </div>` : ''}
+
+    <!-- Carburants -->
+    <div class="bento-card bg-card border border-border rounded-2xl p-5 mb-4">
+      <h2 class="text-sm font-semibold text-white mb-3">Carburants à proximité</h2>
+      <div id="fuel-content"><div class="skeleton h-20 rounded-xl"></div></div>
+    </div>
+
+    <!-- AdSense responsive -->
+    <div class="my-6 flex justify-center overflow-hidden">
+      <ins class="adsbygoogle" style="display:block;width:100%;max-width:728px;height:90px"
+           data-ad-client="ca-pub-2156803616781959" data-ad-slot="auto"
+           data-ad-format="auto" data-full-width-responsive="true"></ins>
+    </div>
+
+    <!-- Amazon : Équipement recommandé dynamique -->
+    ${buildAmazonBlock(c)}
+
+    <!-- Retour -->
+    <button onclick="navigate('/',event)" class="text-sm text-gray-500 hover:text-indigo-400 transition-colors mt-4 block">
+      ← Retour à la recherche
+    </button>
+    `;
+  }
+
+  // ── Bloc Amazon affilié dynamique ─────────────────────────────────────────
+  function buildAmazonBlock(commune, context = 'ville') {
+    const AMZN = 'https://www.amazon.fr/s?tag=' + AMZN_TAG + '&k=';
+    let items = [];
+
+    if (context === 'compare') {
+      items = [
+        { icon: '📦', label: 'Cartons & équipement déménagement', q: 'cartons+déménagement+kit' },
+        { icon: '📋', label: 'Guides de l\'immobilier français',    q: 'guide+immobilier+achat+france' },
+        { icon: '🔌', label: 'Multiprises & accessoires maison',   q: 'multiprise+smart+home' },
+      ];
+    } else if (commune) {
+      const pop = commune.population || 0;
+      const fibre = commune.fibre_pct;
+      const prixM2 = commune.immo?.prix_m2_median;
+
+      // Grande ville (> 50 000 hab)
+      if (pop >= 50000) {
+        items.push({ icon: '🚲', label: 'Vélos électriques & mobilité urbaine', q: 'vélo+électrique+urbain' });
+        items.push({ icon: '🏠', label: 'Meubles pour appartement compact',      q: 'meuble+gain+place+appartement' });
+      } else if (pop >= 5000) {
+        items.push({ icon: '🌿', label: 'Jardinage & terrasse',        q: 'jardinage+outils+terrasse' });
+        items.push({ icon: '🔧', label: 'Outillage bricolage maison',  q: 'perceuse+visseuse+bricolage' });
+      } else {
+        // Commune rurale
+        items.push({ icon: '☀️', label: 'Panneaux solaires & énergie renouvelable', q: 'panneau+solaire+maison' });
+        items.push({ icon: '🌱', label: 'Potager & permaculture',                   q: 'potager+graines+permaculture' });
+      }
+
+      // Fibre faible → équipement 4G/5G
+      if (fibre != null && fibre < 50) {
+        items.push({ icon: '📡', label: 'Routeurs 4G/5G pour zones sans fibre', q: 'routeur+4G+5G+maison' });
+      } else {
+        items.push({ icon: '💻', label: 'Box fibre & équipement réseau',         q: 'routeur+wifi+6+box+fibre' });
+      }
+
+      // Marché immobilier tendu → guides investissement
+      if (prixM2 && prixM2 > 3500) {
+        items.push({ icon: '📚', label: 'Guides investissement immobilier',      q: 'guide+investissement+immobilier' });
+      }
+    }
+
+    if (!items.length) return '';
+
+    return `
+    <div class="amzn-card rounded-2xl p-5 mb-4">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-amber-400 text-sm">★</span>
+        <h2 class="text-sm font-semibold text-white">Équipement recommandé pour votre installation</h2>
+        <span class="badge bg-amber-500/20 text-amber-300 ml-auto">Amazon</span>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-${Math.min(items.length, 3)} gap-2">
+        ${items.map(it => `
+        <a href="${AMZN}${encodeURIComponent(it.q)}" target="_blank" rel="noopener sponsored"
+           class="flex items-center gap-2.5 bg-black/20 hover:bg-black/40 border border-amber-500/10 hover:border-amber-500/30 rounded-xl px-3 py-2.5 transition-all group">
+          <span class="text-lg shrink-0">${it.icon}</span>
+          <span class="text-xs text-gray-300 group-hover:text-white transition-colors leading-snug">${it.label}</span>
+          <svg class="ml-auto shrink-0 opacity-40 group-hover:opacity-80 transition-opacity" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 7h10v10M7 17 17 7"/></svg>
+        </a>`).join('')}
+      </div>
+      <p class="text-xs text-gray-600 mt-2">Liens d'affiliation Amazon (vivrea-21). En tant que Partenaire Amazon je perçois une commission.</p>
+    </div>`;
+  }
+
+  // ── Carburants ────────────────────────────────────────────────────────────
+  async function loadFuel(commune) {
+    const el = document.getElementById('fuel-content');
+    if (!el) return;
+    try {
+      const data = await fetchJSON(`${DATA_BASE}/carburants.json`);
+      if (!data?.stations?.length) throw new Error('vide');
+
+      const stations = getFuelForCommune(data, commune);
+      if (!stations.length) {
+        el.innerHTML = `<p class="text-sm text-gray-500">Aucune station trouvée dans ce secteur.</p>`;
+        return;
+      }
+
+      const TYPES = ['SP95', 'SP98', 'Gazole', 'E10', 'E85', 'GPLc'];
+      const ts = new Date(data.updated_at).toLocaleString('fr');
+
+      el.innerHTML = `
+        <p class="text-xs text-gray-500 mb-3">Mis à jour : ${ts}</p>
+        <div class="overflow-x-auto -mx-1">
+          <table class="w-full text-xs min-w-max">
+            <thead>
+              <tr class="text-gray-500 text-left border-b border-border">
+                <th class="pb-2 pr-4 font-medium">Station</th>
+                ${TYPES.map(t => `<th class="pb-2 pr-3 font-medium">${t}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${stations.map(s => `
+              <tr class="border-b border-border/40 last:border-0">
+                <td class="py-1.5 pr-4 text-gray-300 max-w-[120px] truncate">${escapeHtml(s.ville || s.cp)}</td>
+                ${TYPES.map(t => `<td class="py-1.5 pr-3 ${s.prix[t] ? 'text-white' : 'text-gray-600'}">${s.prix[t] ? s.prix[t].toFixed(3) + '€' : '—'}</td>`).join('')}
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } catch (_) {
+      el.innerHTML = `<p class="text-sm text-gray-500">Données carburants temporairement indisponibles.</p>`;
+    }
+  }
+
+  function getFuelForCommune(data, commune) {
+    if (!data?.stations) return [];
+    const cp  = commune.cp || '';
+    const dep = commune.code_dep || '';
+    return data.stations.filter(s =>
+      s.cp === cp || (dep && s.cp?.startsWith(dep.padStart(2, '0')))
+    ).slice(0, 6);
+  }
+
+  // ── Modal de comparaison ──────────────────────────────────────────────────
+  let _compareSourceCode = null;
+
+  function openCompareModal(sourceCode, sourceName) {
+    _compareSourceCode = sourceCode;
+    const modal = document.getElementById('compare-modal');
+    modal.classList.remove('hidden');
+    const input    = document.getElementById('compare-input');
+    const dropdown = document.getElementById('compare-dropdown');
+    input.value = '';
+    input.focus();
+
+    let cmpDebounce = null;
+    input.oninput = () => {
+      const q = input.value.trim();
+      clearTimeout(cmpDebounce);
+      dropdown.innerHTML = '';
+      if (!q) { dropdown.classList.add('hidden'); return; }
+      cmpDebounce = setTimeout(async () => {
+        const results = await workerSearch(q, 6, 'COMPARE');
+        renderDD(dropdown, results, input, (r) => {
+          closeCompareModal();
+          navigate(`/comparer/${sourceCode}/${r.code_insee}`);
+        });
+      }, 150);
+    };
+    input.onkeydown = (e) => { if (e.key === 'Escape') closeCompareModal(); };
+  }
+
+  function openCompareFromHome() {
+    // Si on est sur une fiche, utiliser le code courant. Sinon ouvrir un flow double-recherche.
+    const r = getRoute(location.pathname);
+    if (r.view === 'ville') {
+      openCompareModal(r.slug, '');
+    } else {
+      // Redirige vers accueil avec indication visuelle
+      navigate('/');
+      setTimeout(() => {
+        const input = document.getElementById('search-input');
+        if (input) {
+          input.placeholder = 'Cherchez la 1ère ville à comparer…';
+          input.focus();
+          // On interception le clic pour initier le flow comparaison
+          const origHandler = input._compareFlow;
+          if (origHandler) input.removeEventListener('click', origHandler);
+        }
+      }, 100);
+    }
+  }
+
+  function closeCompareModal(event) {
+    if (event && event.target !== document.getElementById('compare-modal')) return;
+    document.getElementById('compare-modal').classList.add('hidden');
+    document.getElementById('compare-input').oninput = null;
+    hideDD(document.getElementById('compare-dropdown'));
+  }
+
+  // ── Fetch helpers ─────────────────────────────────────────────────────────
+  async function fetchByInsee(code) {
     const dep = code.startsWith('97') ? code.slice(0, 3) : code.slice(0, 2);
-    const details = await fetchDepDetails(dep);
+    const details = await fetchDep(dep);
     if (details) {
-      const found = details.find(c => c.code_insee === code);
-      if (found) return enrichCommune(found);
+      const f = details.find(c => c.code_insee === code);
+      if (f) return enrich(f);
     }
-    // 2) Fallback API Géo en direct
-    const data = await fetchJSON(`https://geo.api.gouv.fr/communes/${code}?fields=code,nom,codesPostaux,codeDepartement,population,surface,centre`);
-    if (data && data.code) return enrichCommune(mapGeoApiToDetail(data));
+    const raw = await fetchJSON(`https://geo.api.gouv.fr/communes/${code}?fields=code,nom,codesPostaux,codeDepartement,population,surface,centre`);
+    if (raw?.code) return enrich(geoToDetail(raw));
     return null;
   }
 
-  async function fetchCommuneBySlug(slug) {
-    // Slug peut être le nom normalisé ou "nom-codeInsee"
-    // On tente via l'API Géo
+  async function fetchBySlug(slug) {
     const nom = slug.replace(/-/g, ' ');
-    const r = await fetchJSON(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(nom)}&fields=code,nom,codesPostaux,codeDepartement,population,surface,centre&limit=1`);
-    if (r && r.length > 0) {
-      const dep = r[0].codeDepartement;
-      const details = await fetchDepDetails(dep);
-      const found = details?.find(c => c.code_insee === r[0].code);
-      return enrichCommune(found || mapGeoApiToDetail(r[0]));
+    const list = await fetchJSON(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(nom)}&fields=code,nom,codesPostaux,codeDepartement,population,surface,centre&limit=1`);
+    if (list?.length) {
+      const dep = list[0].codeDepartement;
+      const details = await fetchDep(dep);
+      const found = details?.find(c => c.code_insee === list[0].code);
+      return enrich(found || geoToDetail(list[0]));
     }
     return null;
   }
 
-  function mapGeoApiToDetail(c) {
+  async function fetchDep(dep) {
+    if (depCache[dep] !== undefined) return depCache[dep];
+    const data = await fetchJSON(`${DATA_BASE}/details/${dep}.json`);
+    depCache[dep] = data || null;
+    return depCache[dep];
+  }
+
+  function geoToDetail(c) {
     const coords = c.centre?.coordinates || [null, null];
     return {
       code_insee:    c.code,
@@ -565,181 +1105,14 @@
     };
   }
 
-  async function enrichCommune(c) {
+  function enrich(c) {
     if (!c) return null;
     if (!c.cp) c.cp = (c.codes_postaux || [])[0] || '';
     return c;
   }
 
-  let depCache = {};
-  async function fetchDepDetails(dep) {
-    if (depCache[dep]) return depCache[dep];
-    const data = await fetchJSON(`${DATA_BASE}/details/${dep}.json`);
-    if (data) depCache[dep] = data;
-    return data;
-  }
-
-  function buildVilleHTML(c) {
-    const surfaceDens = c.surface_km2 && c.population
-      ? Math.round(c.population / c.surface_km2)
-      : null;
-
-    const fibreColor = c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
-    const fibreBg    = c.fibre_pct >= 80 ? 'bg-emerald-500/10' : c.fibre_pct >= 40 ? 'bg-amber-500/10' : 'bg-rose-500/10';
-
-    return `
-    <div class="mb-6 fade-up">
-      <div class="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 class="text-3xl font-bold text-white">${escapeHtml(c.nom)}</h1>
-          <p class="text-gray-400 mt-1 text-sm">
-            Département ${escapeHtml(c.code_dep)} · Code INSEE <code class="text-indigo-300">${escapeHtml(c.code_insee)}</code>
-            ${c.cp ? `· CP <code class="text-indigo-300">${escapeHtml(c.cp)}</code>` : ''}
-          </p>
-        </div>
-        <div class="flex gap-2">
-          <button onclick="copyInsee('${c.code_insee}')" class="text-xs border border-border rounded-lg px-3 py-1.5 text-gray-400 hover:text-white hover:border-indigo-500 transition-colors">
-            Copier INSEE
-          </button>
-          <a href="https://www.google.com/maps?q=${c.lat},${c.lon}" target="_blank" rel="noopener"
-             class="text-xs border border-border rounded-lg px-3 py-1.5 text-gray-400 hover:text-white hover:border-indigo-500 transition-colors">
-            Voir sur la carte ↗
-          </a>
-        </div>
-      </div>
-    </div>
-
-    <!-- Bento grid principal -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-      <!-- Population -->
-      <div class="bento-card bg-card border border-border rounded-2xl p-5 col-span-1">
-        <p class="text-xs text-gray-500 mb-1 uppercase tracking-wider">Population</p>
-        <p class="text-2xl font-bold text-white">${c.population ? c.population.toLocaleString('fr') : '—'}</p>
-        ${surfaceDens ? `<p class="text-xs text-gray-500 mt-1">${surfaceDens.toLocaleString('fr')} hab/km²</p>` : ''}
-      </div>
-      <!-- Superficie -->
-      <div class="bento-card bg-card border border-border rounded-2xl p-5 col-span-1">
-        <p class="text-xs text-gray-500 mb-1 uppercase tracking-wider">Superficie</p>
-        <p class="text-2xl font-bold text-white">${c.surface_km2 ? c.surface_km2.toLocaleString('fr') : '—'}</p>
-        <p class="text-xs text-gray-500 mt-1">km²</p>
-      </div>
-      <!-- Fibre -->
-      <div class="bento-card ${fibreBg} border border-border rounded-2xl p-5 col-span-1">
-        <p class="text-xs text-gray-500 mb-1 uppercase tracking-wider">Fibre FTTH</p>
-        <p class="text-2xl font-bold ${fibreColor}">${c.fibre_pct != null ? c.fibre_pct + '%' : '—'}</p>
-        <p class="text-xs text-gray-500 mt-1">locaux raccordables</p>
-        ${c.fibre_pct != null ? `
-        <div class="mt-2 bg-black/20 rounded-full h-1.5">
-          <div class="bar-fill h-1.5 rounded-full ${c.fibre_pct >= 80 ? 'bg-emerald-400' : c.fibre_pct >= 40 ? 'bg-amber-400' : 'bg-rose-400'}" style="width:${c.fibre_pct}%"></div>
-        </div>` : ''}
-      </div>
-      <!-- Code postal -->
-      <div class="bento-card bg-card border border-border rounded-2xl p-5 col-span-1">
-        <p class="text-xs text-gray-500 mb-1 uppercase tracking-wider">Code postal</p>
-        <p class="text-2xl font-bold text-white">${c.cp || '—'}</p>
-        ${c.codes_postaux && c.codes_postaux.length > 1 ? `<p class="text-xs text-gray-500 mt-1">+${c.codes_postaux.length - 1} autre(s)</p>` : ''}
-      </div>
-    </div>
-
-    <!-- Immobilier -->
-    ${c.immo ? `
-    <div class="bento-card bg-card border border-border rounded-2xl p-5 mb-4">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-base font-semibold text-white">Immobilier</h2>
-        <span class="badge bg-indigo-500/20 text-indigo-300">${c.immo.annee_dvf || 'DVF'}</span>
-      </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        ${c.immo.prix_m2_median ? `
-        <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Prix médian m²</p>
-          <p class="text-xl font-bold text-white">${Math.round(c.immo.prix_m2_median).toLocaleString('fr')} €</p>
-        </div>` : ''}
-        ${c.immo.loyer_median ? `
-        <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Loyer médian m²</p>
-          <p class="text-xl font-bold text-white">${c.immo.loyer_median.toFixed(1)} €</p>
-        </div>` : ''}
-        ${c.immo.nb_transactions ? `
-        <div>
-          <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Transactions</p>
-          <p class="text-xl font-bold text-white">${c.immo.nb_transactions.toLocaleString('fr')}</p>
-        </div>` : ''}
-      </div>
-      <!-- Lien Amazon affilié : recherche immobilier -->
-      <p class="mt-4 text-xs text-gray-600">
-        📚 <a href="https://www.amazon.fr/s?k=guide+immobilier+france&tag=${AMZN_TAG}" target="_blank" rel="noopener sponsored" class="text-indigo-400 hover:underline">Guides immobilier sur Amazon</a>
-      </p>
-    </div>` : ''}
-
-    <!-- Carburants section dynamique -->
-    <div id="fuel-section" class="bento-card bg-card border border-border rounded-2xl p-5 mb-4">
-      <h2 class="text-base font-semibold text-white mb-3">Carburants à proximité</h2>
-      <div id="fuel-content">
-        <div class="skeleton h-16 rounded-xl"></div>
-      </div>
-    </div>
-
-    <!-- AdSense inline -->
-    <div class="my-6 flex justify-center">
-      <ins class="adsbygoogle" style="display:block;width:100%;max-width:728px;height:90px" data-ad-client="ca-pub-2156803616781959" data-ad-slot="auto" data-ad-format="auto" data-full-width-responsive="true"></ins>
-    </div>
-
-    <!-- Lien retour -->
-    <button onclick="navigate('/',event)" class="text-sm text-gray-500 hover:text-indigo-400 transition-colors mt-2">
-      ← Retour à la recherche
-    </button>
-    `;
-  }
-
-  async function loadLocalFuel(commune) {
-    const section = document.getElementById('fuel-content');
-    if (!section) return;
-    try {
-      const data = await fetchJSON(`${DATA_BASE}/carburants.json`);
-      if (!data || !data.stations) throw new Error('Données indisponibles');
-
-      // Filtrer par code postal (approx.)
-      const cp = commune.cp || '';
-      const dep = commune.code_dep || '';
-      let stations = data.stations.filter(s =>
-        s.cp === cp || (dep && s.cp && s.cp.startsWith(dep))
-      ).slice(0, 5);
-
-      if (!stations.length) {
-        section.innerHTML = `<p class="text-sm text-gray-500">Aucune station trouvée dans ce secteur.</p>`;
-        return;
-      }
-
-      // Carburants à afficher
-      const types = ['SP95', 'SP98', 'Gazole', 'E10', 'E85', 'GPLc'];
-
-      section.innerHTML = `
-        <p class="text-xs text-gray-500 mb-3">Mis à jour : ${new Date(data.updated_at).toLocaleString('fr')}</p>
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs">
-            <thead>
-              <tr class="text-gray-500 text-left border-b border-border">
-                <th class="pb-2 pr-4 font-medium">Ville</th>
-                ${types.map(t => `<th class="pb-2 pr-3 font-medium">${t}</th>`).join('')}
-              </tr>
-            </thead>
-            <tbody>
-              ${stations.map(s => `
-              <tr class="border-b border-border/50 last:border-0">
-                <td class="py-1.5 pr-4 text-gray-300">${escapeHtml(s.ville || s.cp)}</td>
-                ${types.map(t => `<td class="py-1.5 pr-3 ${s.prix[t] ? 'text-white' : 'text-gray-600'}">${s.prix[t] ? s.prix[t].toFixed(3) + '€' : '—'}</td>`).join('')}
-              </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-      `;
-    } catch (e) {
-      section.innerHTML = `<p class="text-sm text-gray-500">Données carburants temporairement indisponibles.</p>`;
-    }
-  }
-
-  // ── Rendu : Templates statiques ───────────────────────────────────────────
-  function renderTemplate(container, tplId, title, desc) {
+  // ── Rendu pages statiques / 404 ───────────────────────────────────────────
+  function renderStatic(container, tplId, title, desc) {
     setSEO(title, desc, BASE_URL + location.pathname);
     const tpl = document.getElementById(tplId);
     if (tpl) container.appendChild(tpl.content.cloneNode(true));
@@ -749,26 +1122,24 @@
     setSEO('Page introuvable – VivreÀ', '', BASE_URL + '/');
     container.innerHTML = `
       <div class="text-center py-24 fade-up">
-        <p class="text-6xl font-bold text-gray-700 mb-4">404</p>
-        <p class="text-gray-400 mb-6">Cette page n'existe pas.</p>
+        <p class="text-7xl font-black text-gray-800 mb-4">404</p>
+        <p class="text-gray-400 mb-8">Cette page n'existe pas.</p>
         <button onclick="navigate('/',event)" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-6 py-2.5 rounded-xl transition-colors">
           Retour à l'accueil
         </button>
-      </div>
-    `;
+      </div>`;
   }
 
-  // ── SEO helpers ───────────────────────────────────────────────────────────
-  function setSEO(title, description, canonical) {
+  // ── SEO ───────────────────────────────────────────────────────────────────
+  function setSEO(title, desc, canonical) {
     document.title = title;
-    setMeta('name', 'description', description);
+    setMeta('name', 'description', desc);
     setMeta('property', 'og:title', title);
-    setMeta('property', 'og:description', description);
+    setMeta('property', 'og:description', desc);
     setMeta('property', 'og:url', canonical);
-    let link = document.querySelector('link[rel="canonical"]');
+    const link = document.querySelector('link[rel="canonical"]');
     if (link) link.href = canonical;
   }
-
   function setMeta(attr, name, content) {
     let el = document.querySelector(`meta[${attr}="${name}"]`);
     if (!el) { el = document.createElement('meta'); el.setAttribute(attr, name); document.head.appendChild(el); }
@@ -778,47 +1149,43 @@
   // ── Utilitaires ───────────────────────────────────────────────────────────
   async function fetchJSON(url) {
     try {
-      const r = await fetch(url);
+      const r = await fetch(url, { cache: 'no-store' });
       if (!r.ok) return null;
-      return await r.json();
+      return r.json();
     } catch { return null; }
   }
 
   function escapeHtml(s) {
-    if (!s) return '';
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  function formatPop(n) {
+  function fmtPop(n) {
     if (!n) return '';
-    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
-    if (n >= 1000) return (n / 1000).toFixed(0) + 'k';
-    return n.toString();
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1000) return Math.round(n / 1000) + 'k';
+    return String(n);
   }
 
-  function highlightMatch(text, query) {
+  function highlight(text, query) {
     const safe = escapeHtml(text);
-    const q = escapeHtml(query.trim());
+    const q = query.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     if (!q) return safe;
-    const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    return safe.replace(regex, '<mark class="bg-indigo-500/30 text-indigo-200 rounded px-0.5">$1</mark>');
+    return safe.replace(new RegExp(`(${q})`, 'gi'), '<mark class="bg-indigo-500/30 text-indigo-200 rounded px-0.5">$1</mark>');
   }
 
   function copyInsee(code) {
     navigator.clipboard?.writeText(code).then(() => {
-      const btn = document.querySelector(`button[onclick*="${code}"]`);
-      if (btn) { const orig = btn.textContent; btn.textContent = 'Copié !'; setTimeout(() => btn.textContent = orig, 1500); }
+      const btn = document.getElementById('btn-copy-insee');
+      if (btn) { btn.textContent = 'Copié !'; setTimeout(() => btn.textContent = 'Copier INSEE', 1500); }
     });
   }
 
-  // ── Bootstrap ──────────────────────────────────────────────────────────────
+  // ── Bootstrap ─────────────────────────────────────────────────────────────
   (function boot() {
-    // Gestion du redirect depuis 404.html (hack GitHub Pages)
-    const redirectPath = sessionStorage.getItem('spa_redirect');
-    if (redirectPath) {
-      sessionStorage.removeItem('spa_redirect');
-      history.replaceState(null, '', redirectPath);
-    }
+    // Hack SPA : récupère la route stockée par 404.html
+    const redirect = sessionStorage.getItem('spa_redirect');
+    if (redirect) { sessionStorage.removeItem('spa_redirect'); history.replaceState(null, '', redirect); }
 
     initWorker();
     loadIndex();
