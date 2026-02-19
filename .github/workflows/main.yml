@@ -1,0 +1,117 @@
+name: VivreÀ – Mise à jour des données & déploiement
+
+on:
+  # Déclenchement manuel depuis l'UI GitHub
+  workflow_dispatch:
+
+  # Mise à jour hebdomadaire (chaque lundi à 03h00 UTC)
+  schedule:
+    - cron: '0 3 * * 1'
+
+# ── Permissions ────────────────────────────────────────────────────────────────
+# IMPORTANT : 'contents: write' est requis pour que le robot puisse
+# committer les fichiers JSON générés dans le dépôt.
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Empêche les exécutions concurrentes (évite les conflits de commit)
+concurrency:
+  group: vivrea-update
+  cancel-in-progress: false
+
+jobs:
+  # ── Job 1 : Mise à jour des données ────────────────────────────────────────
+  update-data:
+    name: Mise à jour des données
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Historique complet pour les diffs propres
+
+      - name: Configuration de Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Installation des dépendances Python
+        run: |
+          pip install --upgrade pip
+          pip install requests
+
+      - name: Exécution du script update.py
+        run: python update.py
+        env:
+          PYTHONUNBUFFERED: '1'   # Logs en temps réel dans GitHub Actions
+
+      - name: Vérification de la taille de l'index
+        run: |
+          INDEX_SIZE=$(du -k data/index.json | cut -f1)
+          echo "Taille de l'index : ${INDEX_SIZE} Ko"
+          if [ "$INDEX_SIZE" -gt 1536 ]; then
+            echo "::warning::L'index dépasse 1.5 Mo (${INDEX_SIZE} Ko) !"
+          else
+            echo "::notice::Index OK : ${INDEX_SIZE} Ko"
+          fi
+
+      - name: Résumé du build
+        run: |
+          echo "### Résumé VivreÀ" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Fichier | Taille |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| \`data/index.json\` | $(du -h data/index.json | cut -f1) |" >> $GITHUB_STEP_SUMMARY
+          echo "| \`data/carburants.json\` | $(du -h data/carburants.json 2>/dev/null | cut -f1 || echo 'N/A') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Fichiers détails | $(ls data/details/*.json 2>/dev/null | wc -l) département(s) |" >> $GITHUB_STEP_SUMMARY
+          cat data/meta.json >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit et push des données mises à jour
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          # On ne commit que s'il y a des changements
+          if git diff --cached --quiet; then
+            echo "Aucun changement dans les données, rien à committer."
+          else
+            TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
+            git commit -m "chore(data): mise à jour automatique – ${TIMESTAMP} [skip ci]"
+            git push
+            echo "::notice::Données committées et poussées avec succès."
+          fi
+
+  # ── Job 2 : Déploiement sur GitHub Pages ───────────────────────────────────
+  deploy-pages:
+    name: Déploiement GitHub Pages
+    needs: update-data
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Environnement GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout du dépôt (avec données fraîches)
+        uses: actions/checkout@v4
+        with:
+          ref: main    # S'assure de prendre le dernier commit (incluant les données)
+
+      - name: Configuration de GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload des artefacts de la page
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'    # Tout le dépôt est le site statique
+
+      - name: Déploiement sur GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

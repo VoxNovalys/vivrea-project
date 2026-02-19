@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VivreÀ – Redirection…</title>
+
+  <!--
+    Hack SPA pour GitHub Pages.
+    GitHub Pages renvoie ce fichier 404.html pour toutes les routes inconnues.
+    On stocke le chemin complet dans sessionStorage et on redirige vers index.html
+    qui le récupère au démarrage pour simuler le routage SPA.
+
+    Inspiration : https://github.com/rafgraph/spa-github-pages
+  -->
+  <script>
+    (function () {
+      var location = window.location;
+      // On conserve le chemin + query + hash
+      var path = location.pathname + location.search + location.hash;
+      // On le stocke pour que index.html puisse le récupérer
+      sessionStorage.setItem('spa_redirect', path);
+      // Remplacement de l'URL par la racine (sans créer une entrée historique)
+      location.replace(
+        location.protocol + '//' + location.hostname +
+        (location.port ? ':' + location.port : '') + '/'
+      );
+    })();
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #0a0a0a;
+      font-family: system-ui, sans-serif;
+      color: #9ca3af;
+    }
+    .dot { display: inline-block; animation: bounce 1.2s infinite both; }
+    .dot:nth-child(2) { animation-delay: .2s; }
+    .dot:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: .5; }
+      40%            { transform: translateY(-8px); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <p>
+    <span class="dot">●</span>
+    <span class="dot">●</span>
+    <span class="dot">●</span>
+  </p>
+</body>
+</html>

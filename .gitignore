@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.env
+
+# Node (si usage futur)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Données générées localement (commitées via CI uniquement)
+# Décommentez les lignes ci-dessous si vous ne voulez pas versionner les données en local :
+# data/index.json
+# data/details/
+# data/carburants.json
+# data/meta.json
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
