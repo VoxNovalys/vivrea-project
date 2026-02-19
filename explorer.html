@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explorer les communes – VivreÀ</title>
+  <meta name="description" content="Liste complète et triable des 35 000 communes françaises. Filtrez par département, triez par population ou superficie." />
+  <link rel="canonical" href="https://vivrea.vox-novalys.fr/explorer.html" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { surface: '#111111', card: '#1a1a1a', border: '#2a2a2a' }, fontFamily: { sans: ['Inter', 'system-ui'] } } },
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2156803616781959" crossorigin="anonymous"></script>
+
+  <style>
+    body { background: #0a0a0a; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a0a; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+    .fade-up { animation: fadeUp .3s ease forwards; }
+
+    @keyframes shimmer { 0% { background-position:-400px 0; } 100% { background-position:400px 0; } }
+    .skeleton {
+      background: linear-gradient(90deg,#1a1a1a 25%,#252525 50%,#1a1a1a 75%);
+      background-size: 400px 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 6px;
+    }
+
+    .search-input:focus { box-shadow: 0 0 0 2px #6366f1, 0 0 20px rgba(99,102,241,.15); }
+
+    /* Table row hover */
+    .commune-row { transition: background .15s; cursor: pointer; }
+    .commune-row:hover { background: rgba(99,102,241,.08); }
+
+    /* Sort arrow */
+    .sort-btn { transition: color .15s; }
+    .sort-btn.asc::after  { content: ' ↑'; }
+    .sort-btn.desc::after { content: ' ↓'; }
+
+    /* Pagination */
+    .page-btn { transition: background .15s, color .15s; }
+    .page-btn:hover:not(:disabled) { background: rgba(99,102,241,.2); color: #818cf8; }
+    .page-btn.active { background: #4f46e5; color: #fff; }
+    .page-btn:disabled { opacity: .35; cursor: default; }
+  </style>
+</head>
+
+<body class="text-gray-200 font-sans antialiased min-h-screen" style="background:#0a0a0a">
+
+  <!-- ══ HEADER ══ -->
+  <header class="sticky top-0 z-40 border-b border-border" style="background:rgba(10,10,10,.9);backdrop-filter:blur(14px)">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 shrink-0">
+        <span class="text-indigo-500 text-xl font-black leading-none">V</span>
+        <span class="font-semibold text-white text-sm">Vivre<span class="text-indigo-400">À</span></span>
+      </a>
+      <nav class="hidden sm:flex items-center gap-6 text-xs text-gray-400">
+        <a href="/"              class="hover:text-indigo-400 transition-colors">Accueil</a>
+        <a href="/explorer.html" class="text-indigo-400">Explorer</a>
+        <a href="/a-propos"      class="hover:text-indigo-400 transition-colors">À propos</a>
+      </nav>
+      <div id="status" class="text-xs text-gray-600 hidden sm:block">Chargement…</div>
+    </div>
+  </header>
+
+  <!-- ══ MAIN ══ -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+
+    <!-- Titre + controls -->
+    <div class="mb-6 fade-up">
+      <h1 class="text-2xl sm:text-3xl font-bold text-white mb-1">Explorer les communes</h1>
+      <p class="text-gray-400 text-sm">Toutes les communes françaises, filtrables et triables.</p>
+    </div>
+
+    <!-- AdSense -->
+    <div class="mb-6 flex justify-center overflow-hidden">
+      <ins class="adsbygoogle" style="display:block;width:728px;height:90px;max-width:100%"
+           data-ad-client="ca-pub-2156803616781959" data-ad-slot="auto" data-ad-format="horizontal" data-full-width-responsive="true"></ins>
+    </div>
+
+    <!-- Filtres -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-5 fade-up">
+      <!-- Recherche texte -->
+      <div class="relative sm:col-span-2">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <input id="filter-text" type="search" autocomplete="off" placeholder="Filtrer par nom ou code postal…"
+          class="search-input w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-all" />
+      </div>
+      <!-- Filtre département -->
+      <div class="relative">
+        <select id="filter-dep"
+          class="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-gray-300 outline-none appearance-none cursor-pointer">
+          <option value="">Tous les départements</option>
+        </select>
+        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+      </div>
+      <!-- Taille de page -->
+      <div class="relative">
+        <select id="page-size"
+          class="w-full bg-card border border-border rounded-xl px-3 py-2.5 text-sm text-gray-300 outline-none appearance-none cursor-pointer">
+          <option value="50">50 par page</option>
+          <option value="100">100 par page</option>
+          <option value="200">200 par page</option>
+        </select>
+        <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+        </span>
+      </div>
+    </div>
+
+    <!-- Résumé -->
+    <div class="flex items-center justify-between mb-3 text-xs text-gray-500">
+      <span id="result-count">—</span>
+      <span id="page-info"></span>
+    </div>
+
+    <!-- Skeleton initial -->
+    <div id="table-wrap">
+      <div class="space-y-2">
+        ${Array(12).fill('<div class="skeleton h-10 rounded-lg"></div>').join('')}
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination" class="flex items-center justify-center gap-1 mt-6 flex-wrap hidden"></div>
+
+  </main>
+
+  <!-- ══ FOOTER ══ -->
+  <footer class="border-t border-border mt-16 py-8 text-center text-xs text-gray-600">
+    <p>© 2025 VivreÀ · <a href="https://geo.api.gouv.fr" class="text-indigo-500 hover:underline" target="_blank">API Géo</a> · <a href="/mentions-legales" class="text-indigo-500 hover:underline">Mentions légales</a></p>
+  </footer>
+
+  <script>
+  'use strict';
+
+  const DATA_BASE = '/data';
+
+  // ── État ─────────────────────────────────────────────────────────────────
+  let allCommunes  = [];   // tableau brut de l'index : [nom, code_insee, cp, pop]
+  let filtered     = [];   // communes après filtres
+  let currentPage  = 1;
+  let pageSize     = 50;
+  let sortKey      = 'nom';   // 'nom' | 'pop' | 'dep' | 'cp'
+  let sortDir      = 'asc';
+
+  // ── Chargement ────────────────────────────────────────────────────────────
+  async function loadData() {
+    try {
+      const r = await fetch(`${DATA_BASE}/index.json`, { cache: 'default' });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      allCommunes = await r.json();
+
+      // Remplir le filtre département
+      const deps = [...new Set(allCommunes.map(c => getDep(c[1])))].sort();
+      const sel  = document.getElementById('filter-dep');
+      deps.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d; opt.textContent = `Département ${d}`;
+        sel.appendChild(opt);
+      });
+
+      document.getElementById('status').textContent = `${allCommunes.length.toLocaleString('fr')} communes`;
+
+      applyFilters();
+    } catch (e) {
+      document.getElementById('table-wrap').innerHTML = `
+        <div class="text-center py-16 text-gray-500">
+          <p class="mb-2">Impossible de charger l'index des communes.</p>
+          <p class="text-xs text-gray-600">Assurez-vous que <code>data/index.json</code> est disponible (lancer <code>update.py</code> d'abord).</p>
+        </div>`;
+    }
+  }
+
+  function getDep(code_insee) {
+    if (!code_insee) return '?';
+    return code_insee.startsWith('97') ? code_insee.slice(0, 3) : code_insee.slice(0, 2);
+  }
+
+  // ── Filtres ───────────────────────────────────────────────────────────────
+  let filterDebounce = null;
+
+  document.getElementById('filter-text').addEventListener('input', () => {
+    clearTimeout(filterDebounce);
+    filterDebounce = setTimeout(() => { currentPage = 1; applyFilters(); }, 180);
+  });
+
+  document.getElementById('filter-dep').addEventListener('change', () => { currentPage = 1; applyFilters(); });
+
+  document.getElementById('page-size').addEventListener('change', e => {
+    pageSize = parseInt(e.target.value, 10);
+    currentPage = 1;
+    render();
+  });
+
+  function applyFilters() {
+    const q   = document.getElementById('filter-text').value.trim().toLowerCase()
+                  .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const dep = document.getElementById('filter-dep').value;
+
+    filtered = allCommunes.filter(c => {
+      const nomN = (c[0] || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const cpN  = (c[2] || '').toLowerCase();
+      const cDep = getDep(c[1]);
+      if (dep && cDep !== dep) return false;
+      if (q && !nomN.includes(q) && !cpN.startsWith(q)) return false;
+      return true;
+    });
+
+    sortData();
+    render();
+  }
+
+  function sortData() {
+    filtered.sort((a, b) => {
+      let va, vb;
+      if (sortKey === 'nom') { va = a[0] || ''; vb = b[0] || ''; return sortDir === 'asc' ? va.localeCompare(vb, 'fr') : vb.localeCompare(va, 'fr'); }
+      if (sortKey === 'pop') { va = a[3] || 0;  vb = b[3] || 0;  return sortDir === 'asc' ? va - vb : vb - va; }
+      if (sortKey === 'dep') { va = getDep(a[1]); vb = getDep(b[1]); return sortDir === 'asc' ? va.localeCompare(vb, 'fr') : vb.localeCompare(va, 'fr'); }
+      if (sortKey === 'cp')  { va = a[2] || ''; vb = b[2] || ''; return sortDir === 'asc' ? va.localeCompare(vb, 'fr') : vb.localeCompare(va, 'fr'); }
+      return 0;
+    });
+  }
+
+  function setSort(key) {
+    if (sortKey === key) { sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
+    else { sortKey = key; sortDir = key === 'pop' ? 'desc' : 'asc'; }
+    sortData();
+    updateSortUI();
+    render();
+  }
+
+  function updateSortUI() {
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+      btn.classList.remove('asc', 'desc', 'text-indigo-400');
+      if (btn.dataset.key === sortKey) {
+        btn.classList.add(sortDir, 'text-indigo-400');
+      }
+    });
+  }
+
+  // ── Rendu tableau ─────────────────────────────────────────────────────────
+  function render() {
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    currentPage = Math.min(currentPage, pages);
+
+    const start = (currentPage - 1) * pageSize;
+    const slice = filtered.slice(start, start + pageSize);
+
+    // Résumé
+    document.getElementById('result-count').textContent =
+      `${total.toLocaleString('fr')} commune${total > 1 ? 's' : ''}`;
+    document.getElementById('page-info').textContent =
+      `Page ${currentPage} / ${pages}`;
+
+    // Table
+    const wrap = document.getElementById('table-wrap');
+    if (!slice.length) {
+      wrap.innerHTML = `<div class="text-center py-16 text-gray-500">Aucune commune ne correspond à votre recherche.</div>`;
+      document.getElementById('pagination').classList.add('hidden');
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div class="overflow-x-auto rounded-2xl border border-border">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-border text-left">
+              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                <button class="sort-btn ${sortKey === 'nom' ? sortDir + ' text-indigo-400' : 'hover:text-gray-300'}" data-key="nom" onclick="setSort('nom')">Commune</button>
+              </th>
+              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap hidden sm:table-cell">
+                <button class="sort-btn ${sortKey === 'dep' ? sortDir + ' text-indigo-400' : 'hover:text-gray-300'}" data-key="dep" onclick="setSort('dep')">Dép.</button>
+              </th>
+              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap hidden md:table-cell">
+                <button class="sort-btn ${sortKey === 'cp' ? sortDir + ' text-indigo-400' : 'hover:text-gray-300'}" data-key="cp" onclick="setSort('cp')">Code postal</button>
+              </th>
+              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
+                <button class="sort-btn ${sortKey === 'pop' ? sortDir + ' text-indigo-400' : 'hover:text-gray-300'}" data-key="pop" onclick="setSort('pop')">Population</button>
+              </th>
+              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap hidden sm:table-cell">INSEE</th>
+              <th class="px-4 py-3 font-medium text-gray-500 text-right whitespace-nowrap">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${slice.map((c, i) => communeRow(c, i)).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    renderPagination(pages);
+  }
+
+  function communeRow(c, i) {
+    const nom  = esc(c[0] || '—');
+    const dep  = getDep(c[1]);
+    const cp   = c[2] || '—';
+    const pop  = c[3] ? c[3].toLocaleString('fr') : '—';
+    const code = c[1];
+    const href = `/?ville=${code}`;
+
+    return `
+      <tr class="commune-row border-b border-border/40 last:border-0"
+          onclick="goToVille('${esc(code)}')">
+        <td class="px-4 py-2.5 font-medium text-white">${nom}</td>
+        <td class="px-4 py-2.5 text-gray-400 hidden sm:table-cell">
+          <span class="inline-block text-xs bg-surface border border-border rounded-lg px-2 py-0.5 font-mono">${esc(dep)}</span>
+        </td>
+        <td class="px-4 py-2.5 text-gray-400 font-mono text-xs hidden md:table-cell">${esc(cp)}</td>
+        <td class="px-4 py-2.5 text-gray-300">${pop}</td>
+        <td class="px-4 py-2.5 text-gray-600 font-mono text-xs hidden sm:table-cell">${esc(code)}</td>
+        <td class="px-4 py-2.5 text-right">
+          <a href="/ville/${esc(code)}" onclick="event.stopPropagation()"
+             class="inline-block text-xs text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-500/20 hover:border-indigo-500/50 rounded-lg px-3 py-1">
+            Voir ↗
+          </a>
+        </td>
+      </tr>`;
+  }
+
+  function goToVille(code) {
+    window.location.href = `/ville/${code}`;
+  }
+
+  // ── Pagination ────────────────────────────────────────────────────────────
+  function renderPagination(pages) {
+    const pag = document.getElementById('pagination');
+    if (pages <= 1) { pag.classList.add('hidden'); return; }
+    pag.classList.remove('hidden');
+
+    // Calcul des pages à afficher (fenêtre glissante)
+    let start = Math.max(1, currentPage - 3);
+    let end   = Math.min(pages, currentPage + 3);
+    if (end - start < 6) {
+      if (start === 1) end = Math.min(pages, 7);
+      else start = Math.max(1, end - 6);
+    }
+
+    const btnClass = 'page-btn w-8 h-8 rounded-lg text-xs font-medium text-gray-400 border border-border flex items-center justify-center';
+
+    let html = `
+      <button class="${btnClass}" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+
+    if (start > 1) {
+      html += `<button class="${btnClass}" onclick="goPage(1)">1</button>`;
+      if (start > 2) html += `<span class="text-gray-600 text-xs px-1">…</span>`;
+    }
+
+    for (let p = start; p <= end; p++) {
+      html += `<button class="${btnClass} ${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
+    }
+
+    if (end < pages) {
+      if (end < pages - 1) html += `<span class="text-gray-600 text-xs px-1">…</span>`;
+      html += `<button class="${btnClass}" onclick="goPage(${pages})">${pages}</button>`;
+    }
+
+    html += `<button class="${btnClass}" onclick="goPage(${currentPage + 1})" ${currentPage === pages ? 'disabled' : ''}>›</button>`;
+    pag.innerHTML = html;
+  }
+
+  function goPage(p) {
+    if (p < 1 || p > Math.ceil(filtered.length / pageSize)) return;
+    currentPage = p;
+    render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // ── Utils ─────────────────────────────────────────────────────────────────
+  function esc(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(_) {}
+  loadData();
+  </script>
+</body>
+</html>

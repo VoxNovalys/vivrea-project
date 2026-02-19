@@ -199,25 +199,65 @@ def fetch_arcep_fibre() -> dict[str, float]:
     fibre_by_commune: dict[str, float] = {}
 
     try:
-        # Jeu de données ARCEP : déploiement du très haut débit par commune
-        # Resource ID du dataset "observatoire-du-deploiement-des-réseaux-fh-et-ftth"
-        ARCEP_RESOURCE_ID = "64a4e6f0-fc90-4d37-a9d8-1d8bfe7bab7e"
-        params = {
-            "resource_id": ARCEP_RESOURCE_ID,
-            "limit": 32000,
-            "offset": 0,
-            "fields": "code_commune,tx_locaux_raccordables_ftth",
-        }
-        data = safe_get(ARCEP_API, params=params, timeout=60)
+        # Jeu de données ARCEP – on essaie plusieurs resource_id connus
+        # (l'identifiant peut changer lors des mises à jour du portail).
+        ARCEP_RESOURCE_IDS = [
+            "64a4e6f0-fc90-4d37-a9d8-1d8bfe7bab7e",  # Observatoire THD communes
+            "b8e68b0e-2a66-4c15-9d39-1fe3fce67e74",  # Déploiement FTTH communes
+        ]
+        # Noms de colonnes possibles selon les versions du jeu de données
+        FIBRE_COL_NAMES = [
+            "tx_locaux_raccordables_ftth",
+            "taux_ftth",
+            "pct_ftth",
+        ]
+
+        data = None
+        for rid in ARCEP_RESOURCE_IDS:
+            params = {
+                "resource_id": rid,
+                "limit": 32000,
+                "offset": 0,
+            }
+            data = safe_get(ARCEP_API, params=params, timeout=60)
+            if data and "result" in data and "records" in data["result"] and data["result"]["records"]:
+                log.info("ARCEP : resource_id=%s → %d enregistrements", rid, len(data["result"]["records"]))
+                break
+            log.warning("ARCEP resource_id=%s : aucun résultat, essai suivant.", rid)
+            data = None
+
         if data and "result" in data and "records" in data["result"]:
-            for record in data["result"]["records"]:
-                code = record.get("code_commune", "")
-                taux = record.get("tx_locaux_raccordables_ftth")
-                if code and taux is not None:
-                    try:
-                        fibre_by_commune[str(code).zfill(5)] = round(float(taux) * 100, 1)
-                    except (ValueError, TypeError):
-                        pass
+            records = data["result"]["records"]
+            # Détecter la colonne de taux fibre disponible
+            fibre_col = None
+            if records:
+                for col in FIBRE_COL_NAMES:
+                    if col in records[0]:
+                        fibre_col = col
+                        break
+            log.info("ARCEP : colonne fibre détectée = %s", fibre_col)
+
+            for record in records:
+                code = str(record.get("code_commune") or record.get("code_insee") or "").strip()
+                if not code:
+                    continue
+                # Normalise le code INSEE sur 5 chiffres
+                code = code.zfill(5)
+                taux_raw = record.get(fibre_col) if fibre_col else None
+                if taux_raw is None:
+                    continue
+                try:
+                    taux_f = float(taux_raw)
+                    # Auto-détection : ratio [0;1] ou pourcentage [0;100]
+                    if taux_f > 1:
+                        fibre_pct = round(taux_f, 1)        # déjà en %
+                    else:
+                        fibre_pct = round(taux_f * 100, 1)  # ratio → %
+                    fibre_by_commune[code] = min(fibre_pct, 100.0)
+                except (ValueError, TypeError):
+                    pass
+        else:
+            log.warning("ARCEP : aucun jeu de données disponible.")
     except Exception as e:
         log.warning("ARCEP partiellement indisponible : %s", e)
 
@@ -275,8 +315,11 @@ def fetch_fuel_prices() -> None:
                 valeur = price_el.get("valeur")
                 if nom and valeur:
                     try:
-                        # L'API fournit les prix en millièmes d'euro (ex: 1759 → 1.759 €)
-                        prix[nom] = round(float(valeur) / 1000, 4)
+                        raw = float(valeur)
+                        # Auto-détection du format source :
+                        # • entier millièmes : 1859 → /1000 → 1.859 €
+                        # • déjà en euros  : 1.859 → conserver tel quel
+                        prix[nom] = round(raw / 1000 if raw > 10 else raw, 4)
                     except ValueError:
                         pass
 

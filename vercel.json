@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    { "source": "/ville/:code",          "destination": "/index.html" },
+    { "source": "/comparer/:path*",      "destination": "/index.html" },
+    { "source": "/a-propos",             "destination": "/index.html" },
+    { "source": "/mentions-legales",     "destination": "/index.html" },
+    { "source": "/explorer",             "destination": "/explorer.html" }
+  ],
+  "headers": [
+    {
+      "source": "/data/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600, stale-while-revalidate=86400" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/(.*)\\.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json; charset=utf-8" }
+      ]
+    }
+  ]
+}
