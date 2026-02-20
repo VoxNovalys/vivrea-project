@@ -230,7 +230,7 @@
   const depCache = {};      // cache des fichiers details/{dep}.json
 
   // Mode comparaison : true quand le bouton "Comparer" a été cliqué
-  let isComparisonMode = false;
+  let isComparing = false;
 
   // ── Web Worker (recherche hors-thread) ────────────────────────────────────
   let worker = null;
@@ -257,14 +257,16 @@
         for(let i=0;i<norm.length;i++){
           const n=norm[i];
           const cp=String(idx[i][2]||'');
+          const code=String(idx[i][1]);
           const s=score(n,q);
-          if(s>0||(cp.startsWith(q)&&q.length>=2)){
+          const codeMatch=code===q;
+          if(s>0||(cp.startsWith(q)&&q.length>=2)||codeMatch){
             res.push({
               nom:        String(idx[i][0]),
-              code_insee: String(idx[i][1]),  // TOUJOURS String
+              code_insee: code,  // TOUJOURS String
               cp:         String(idx[i][2]||''),
               pop:        idx[i][3]||0,
-              _s: s||(cp.startsWith(q)?20:0)
+              _s: s||(codeMatch?90:0)||(cp.startsWith(q)?20:0)
             });
           }
         }
@@ -301,6 +303,7 @@
   // Identifiant unique par requête → évite les collisions de channel
   let _seq = 0;
   function wSearch(query, limit, prefix) {
+    if (!worker) return Promise.resolve([]);
     const ch = (prefix || 'S') + '_' + (++_seq);
     return new Promise(resolve => {
       workerCbs[ch] = resolve;
@@ -338,7 +341,7 @@
   }
 
   function route(path) {
-    isComparisonMode = false;
+    isComparing = false;
     const app = document.getElementById('app');
     app.innerHTML = '';
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -392,6 +395,7 @@
         try {
           console.log('[VivreÀ] Recherche :', q);
           const results = await wSearch(q, 8, 'MAIN');
+          if (!results) { loader?.classList.add('hidden'); return; }
           console.log('[VivreÀ] →', results.length, 'résultats, premier code_insee =', results[0]?.code_insee, '(type:', typeof results[0]?.code_insee, ')');
           renderDD(dropdown, results, input, r => navigate('/ville/' + r.code_insee));
         } catch (e) {
@@ -583,15 +587,15 @@
    * toggleComparisonMode(codeA, nomA)
    *
    * Appelé par le bouton "Comparer" sur la fiche ville.
-   * - Met isComparisonMode = true
+   * - Met isComparing = true
    * - Affiche city-details-2 (vide) à droite de city-details-1
    * - Initialise une barre de recherche dans city-details-2
    *
    * Aucune navigation, aucun rechargement de la ville A.
    */
   function toggleComparisonMode(codeA, nomA) {
-    if (isComparisonMode) return;   // déjà actif
-    isComparisonMode = true;
+    if (isComparing) return;   // déjà actif
+    isComparing = true;
     console.log('[VivreÀ] toggleComparisonMode → codeA =', codeA, '(type:', typeof codeA, ')');
 
     history.pushState(null, '', '/comparer/' + codeA);
@@ -634,7 +638,7 @@
   }
 
   function closeComparisonMode(codeA) {
-    isComparisonMode = false;
+    isComparing = false;
     history.pushState(null, '', '/ville/' + codeA);
 
     const col1 = document.getElementById('city-details-1');

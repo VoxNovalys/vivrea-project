@@ -51,6 +51,10 @@
     .page-btn:hover:not(:disabled) { background: rgba(99,102,241,.2); color: #818cf8; }
     .page-btn.active { background: #4f46e5; color: #fff; }
     .page-btn:disabled { opacity: .35; cursor: default; }
+
+    /* Commune cards (grid layout) */
+    .commune-card { transition: border-color .15s, background .15s; cursor: pointer; }
+    .commune-card:hover { background: rgba(99,102,241,.05); }
   </style>
 </head>
 
@@ -121,6 +125,15 @@
       </div>
     </div>
 
+    <!-- Tri -->
+    <div class="flex items-center gap-2 mb-4 flex-wrap">
+      <span class="text-xs text-gray-500 shrink-0">Trier par :</span>
+      <button class="sort-btn text-xs px-3 py-1.5 bg-card border border-border rounded-lg hover:border-indigo-500/40 text-gray-400 transition-colors" data-key="nom" onclick="setSort('nom')">Nom</button>
+      <button class="sort-btn text-xs px-3 py-1.5 bg-card border border-border rounded-lg hover:border-indigo-500/40 text-gray-400 transition-colors" data-key="pop" onclick="setSort('pop')">Population</button>
+      <button class="sort-btn text-xs px-3 py-1.5 bg-card border border-border rounded-lg hover:border-indigo-500/40 text-gray-400 transition-colors" data-key="dep" onclick="setSort('dep')">Département</button>
+      <button class="sort-btn text-xs px-3 py-1.5 bg-card border border-border rounded-lg hover:border-indigo-500/40 text-gray-400 transition-colors" data-key="cp" onclick="setSort('cp')">Code postal</button>
+    </div>
+
     <!-- Résumé -->
     <div class="flex items-center justify-between mb-3 text-xs text-gray-500">
       <span id="result-count">—</span>
@@ -129,8 +142,13 @@
 
     <!-- Skeleton initial -->
     <div id="table-wrap">
-      <div class="space-y-2">
-        ${Array(12).fill('<div class="skeleton h-10 rounded-lg"></div>').join('')}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0.75rem">
+        <div class="skeleton h-24 rounded-2xl"></div><div class="skeleton h-24 rounded-2xl"></div>
+        <div class="skeleton h-24 rounded-2xl"></div><div class="skeleton h-24 rounded-2xl"></div>
+        <div class="skeleton h-24 rounded-2xl"></div><div class="skeleton h-24 rounded-2xl"></div>
+        <div class="skeleton h-24 rounded-2xl"></div><div class="skeleton h-24 rounded-2xl"></div>
+        <div class="skeleton h-24 rounded-2xl"></div><div class="skeleton h-24 rounded-2xl"></div>
+        <div class="skeleton h-24 rounded-2xl"></div><div class="skeleton h-24 rounded-2xl"></div>
       </div>
     </div>
 
@@ -149,6 +167,31 @@
 
   const DATA_BASE = '/data';
 
+  // ── Noms de départements ───────────────────────────────────────────────────
+  const DEPT_NAMES = {
+    '01':'Ain','02':'Aisne','03':'Allier','04':'Alpes-de-Haute-Provence','05':'Hautes-Alpes',
+    '06':'Alpes-Maritimes','07':'Ardèche','08':'Ardennes','09':'Ariège','10':'Aube',
+    '11':'Aude','12':'Aveyron','13':'Bouches-du-Rhône','14':'Calvados','15':'Cantal',
+    '16':'Charente','17':'Charente-Maritime','18':'Cher','19':'Corrèze','2A':'Corse-du-Sud',
+    '2B':'Haute-Corse','21':'Côte-d\'Or','22':'Côtes-d\'Armor','23':'Creuse','24':'Dordogne',
+    '25':'Doubs','26':'Drôme','27':'Eure','28':'Eure-et-Loir','29':'Finistère',
+    '30':'Gard','31':'Haute-Garonne','32':'Gers','33':'Gironde','34':'Hérault',
+    '35':'Ille-et-Vilaine','36':'Indre','37':'Indre-et-Loire','38':'Isère','39':'Jura',
+    '40':'Landes','41':'Loir-et-Cher','42':'Loire','43':'Haute-Loire','44':'Loire-Atlantique',
+    '45':'Loiret','46':'Lot','47':'Lot-et-Garonne','48':'Lozère','49':'Maine-et-Loire',
+    '50':'Manche','51':'Marne','52':'Haute-Marne','53':'Mayenne','54':'Meurthe-et-Moselle',
+    '55':'Meuse','56':'Morbihan','57':'Moselle','58':'Nièvre','59':'Nord',
+    '60':'Oise','61':'Orne','62':'Pas-de-Calais','63':'Puy-de-Dôme','64':'Pyrénées-Atlantiques',
+    '65':'Hautes-Pyrénées','66':'Pyrénées-Orientales','67':'Bas-Rhin','68':'Haut-Rhin','69':'Rhône',
+    '70':'Haute-Saône','71':'Saône-et-Loire','72':'Sarthe','73':'Savoie','74':'Haute-Savoie',
+    '75':'Paris','76':'Seine-Maritime','77':'Seine-et-Marne','78':'Yvelines','79':'Deux-Sèvres',
+    '80':'Somme','81':'Tarn','82':'Tarn-et-Garonne','83':'Var','84':'Vaucluse',
+    '85':'Vendée','86':'Vienne','87':'Haute-Vienne','88':'Vosges','89':'Yonne',
+    '90':'Territoire de Belfort','91':'Essonne','92':'Hauts-de-Seine','93':'Seine-Saint-Denis','94':'Val-de-Marne',
+    '95':'Val-d\'Oise','971':'Guadeloupe','972':'Martinique','973':'Guyane','974':'La Réunion',
+    '976':'Mayotte'
+  };
+
   // ── État ─────────────────────────────────────────────────────────────────
   let allCommunes  = [];   // tableau brut de l'index : [nom, code_insee, cp, pop]
   let filtered     = [];   // communes après filtres
@@ -165,29 +208,6 @@
       allCommunes = await r.json();
 
       // Remplir le filtre département
-      const DEPT_NAMES = {
-        '01':'Ain','02':'Aisne','03':'Allier','04':'Alpes-de-Haute-Provence','05':'Hautes-Alpes',
-        '06':'Alpes-Maritimes','07':'Ardèche','08':'Ardennes','09':'Ariège','10':'Aube',
-        '11':'Aude','12':'Aveyron','13':'Bouches-du-Rhône','14':'Calvados','15':'Cantal',
-        '16':'Charente','17':'Charente-Maritime','18':'Cher','19':'Corrèze','2A':'Corse-du-Sud',
-        '2B':'Haute-Corse','21':'Côte-d\'Or','22':'Côtes-d\'Armor','23':'Creuse','24':'Dordogne',
-        '25':'Doubs','26':'Drôme','27':'Eure','28':'Eure-et-Loir','29':'Finistère',
-        '30':'Gard','31':'Haute-Garonne','32':'Gers','33':'Gironde','34':'Hérault',
-        '35':'Ille-et-Vilaine','36':'Indre','37':'Indre-et-Loire','38':'Isère','39':'Jura',
-        '40':'Landes','41':'Loir-et-Cher','42':'Loire','43':'Haute-Loire','44':'Loire-Atlantique',
-        '45':'Loiret','46':'Lot','47':'Lot-et-Garonne','48':'Lozère','49':'Maine-et-Loire',
-        '50':'Manche','51':'Marne','52':'Haute-Marne','53':'Mayenne','54':'Meurthe-et-Moselle',
-        '55':'Meuse','56':'Morbihan','57':'Moselle','58':'Nièvre','59':'Nord',
-        '60':'Oise','61':'Orne','62':'Pas-de-Calais','63':'Puy-de-Dôme','64':'Pyrénées-Atlantiques',
-        '65':'Hautes-Pyrénées','66':'Pyrénées-Orientales','67':'Bas-Rhin','68':'Haut-Rhin','69':'Rhône',
-        '70':'Haute-Saône','71':'Saône-et-Loire','72':'Sarthe','73':'Savoie','74':'Haute-Savoie',
-        '75':'Paris','76':'Seine-Maritime','77':'Seine-et-Marne','78':'Yvelines','79':'Deux-Sèvres',
-        '80':'Somme','81':'Tarn','82':'Tarn-et-Garonne','83':'Var','84':'Vaucluse',
-        '85':'Vendée','86':'Vienne','87':'Haute-Vienne','88':'Vosges','89':'Yonne',
-        '90':'Territoire de Belfort','91':'Essonne','92':'Hauts-de-Seine','93':'Seine-Saint-Denis','94':'Val-de-Marne',
-        '95':'Val-d\'Oise','971':'Guadeloupe','972':'Martinique','973':'Guyane','974':'La Réunion',
-        '976':'Mayotte'
-      };
       const deps = [...new Set(allCommunes.map(c => getDep(c[1])))].sort();
       const sel  = document.getElementById('filter-dep');
       deps.forEach(d => {
@@ -275,7 +295,7 @@
     });
   }
 
-  // ── Rendu tableau ─────────────────────────────────────────────────────────
+  // ── Rendu grille ──────────────────────────────────────────────────────────
   function render() {
     const total = filtered.length;
     const pages = Math.max(1, Math.ceil(total / pageSize));
@@ -290,7 +310,9 @@
     document.getElementById('page-info').textContent =
       `Page ${currentPage} / ${pages}`;
 
-    // Table
+    updateSortUI();
+
+    // Grille de cartes
     const wrap = document.getElementById('table-wrap');
     if (!slice.length) {
       wrap.innerHTML = `<div class="text-center py-16 text-gray-500">Aucune commune ne correspond à votre recherche.</div>`;
@@ -299,60 +321,41 @@
     }
 
     wrap.innerHTML = `
-      <div class="overflow-x-auto rounded-2xl border border-border">
-        <table class="w-full text-sm">
-          <thead>
-            <tr class="border-b border-border text-left">
-              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                <button class="sort-btn ${sortKey === 'nom' ? sortDir + ' text-indigo-400' : 'hover:text-gray-300'}" data-key="nom" onclick="setSort('nom')">Commune</button>
-              </th>
-              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap hidden sm:table-cell">
-                <button class="sort-btn ${sortKey === 'dep' ? sortDir + ' text-indigo-400' : 'hover:text-gray-300'}" data-key="dep" onclick="setSort('dep')">Dép.</button>
-              </th>
-              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap hidden md:table-cell">
-                <button class="sort-btn ${sortKey === 'cp' ? sortDir + ' text-indigo-400' : 'hover:text-gray-300'}" data-key="cp" onclick="setSort('cp')">Code postal</button>
-              </th>
-              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap">
-                <button class="sort-btn ${sortKey === 'pop' ? sortDir + ' text-indigo-400' : 'hover:text-gray-300'}" data-key="pop" onclick="setSort('pop')">Population</button>
-              </th>
-              <th class="px-4 py-3 font-medium text-gray-500 whitespace-nowrap hidden sm:table-cell">INSEE</th>
-              <th class="px-4 py-3 font-medium text-gray-500 text-right whitespace-nowrap">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${slice.map((c, i) => communeRow(c, i)).join('')}
-          </tbody>
-        </table>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:0.75rem">
+        ${slice.map((c, i) => communeRow(c, i)).join('')}
       </div>`;
 
     renderPagination(pages);
   }
 
   function communeRow(c, i) {
-    const nom  = esc(c[0] || '—');
-    const dep  = getDep(c[1]);
-    const cp   = c[2] || '—';
-    const pop  = c[3] ? c[3].toLocaleString('fr') : '—';
-    const code = c[1];
-    const href = `/?ville=${code}`;
+    const nom      = esc(c[0] || '—');
+    const dep      = getDep(c[1]);
+    const cp       = c[2] || '—';
+    const pop      = c[3] ? c[3].toLocaleString('fr') : '—';
+    const code     = c[1];
+    const deptName = esc(DEPT_NAMES[dep] || dep);
 
     return `
-      <tr class="commune-row border-b border-border/40 last:border-0"
-          onclick="goToVille('${esc(code)}')">
-        <td class="px-4 py-2.5 font-medium text-white">${nom}</td>
-        <td class="px-4 py-2.5 text-gray-400 hidden sm:table-cell">
-          <span class="inline-block text-xs bg-surface border border-border rounded-lg px-2 py-0.5 font-mono">${esc(dep)}</span>
-        </td>
-        <td class="px-4 py-2.5 text-gray-400 font-mono text-xs hidden md:table-cell">${esc(cp)}</td>
-        <td class="px-4 py-2.5 text-gray-300">${pop}</td>
-        <td class="px-4 py-2.5 text-gray-600 font-mono text-xs hidden sm:table-cell">${esc(code)}</td>
-        <td class="px-4 py-2.5 text-right">
+      <div class="commune-card bg-card border border-border rounded-2xl p-4"
+           onclick="goToVille('${esc(code)}')">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <h3 class="font-semibold text-white text-sm leading-snug">${nom}</h3>
+          <span class="shrink-0 text-xs bg-surface border border-border rounded-lg px-2 py-0.5 font-mono text-gray-400">${esc(dep)}</span>
+        </div>
+        <p class="text-xs text-gray-500 mb-2">${deptName}</p>
+        <div class="flex items-center gap-4 text-xs text-gray-400 mb-3">
+          <span>CP&nbsp;<span class="font-mono text-gray-300">${esc(cp)}</span></span>
+          <span>Pop.&nbsp;<strong class="text-gray-300">${pop}</strong></span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono text-gray-600">${esc(code)}</span>
           <a href="/ville/${esc(code)}" onclick="event.stopPropagation()"
-             class="inline-block text-xs text-indigo-400 hover:text-indigo-300 transition-colors border border-indigo-500/20 hover:border-indigo-500/50 rounded-lg px-3 py-1">
+             class="text-xs text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/50 rounded-lg px-3 py-1 transition-colors">
             Voir ↗
           </a>
-        </td>
-      </tr>`;
+        </div>
+      </div>`;
   }
 
   function goToVille(code) {

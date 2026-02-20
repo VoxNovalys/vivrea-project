@@ -17,6 +17,8 @@ jobs:
     name: Mise à jour des données → push → Vercel redéploie
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout

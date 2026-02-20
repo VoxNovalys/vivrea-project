@@ -305,11 +305,13 @@ def fetch_fuel_prices() -> None:
             prix: dict[str, float] = {}
             for price_el in pdv.findall("prix"):
                 nom    = price_el.get("nom", "")
-                valeur = price_el.get("valeur")
-                if nom and valeur:
-                    price = normalize_fuel_price(valeur)
-                    if price is not None:
-                        prix[nom] = price
+                valeur = price_el.get("valeur", "")
+                if nom:
+                    try:
+                        price = normalize_fuel_price(valeur)
+                        prix[nom] = price if price is not None else 0
+                    except Exception:
+                        prix[nom] = 0
 
             if not prix or not cp:
                 continue
