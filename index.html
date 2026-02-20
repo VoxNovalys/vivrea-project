@@ -306,7 +306,13 @@
     if (!worker) return Promise.resolve([]);
     const ch = (prefix || 'S') + '_' + (++_seq);
     return new Promise(resolve => {
-      workerCbs[ch] = resolve;
+      // Timeout de sécurité : si le worker ne répond pas en 5s, résoudre avec []
+      const t = setTimeout(() => {
+        delete workerCbs[ch];
+        console.warn('[VivreÀ] wSearch timeout pour :', query);
+        resolve([]);
+      }, 5000);
+      workerCbs[ch] = results => { clearTimeout(t); resolve(results); };
       worker.postMessage({ type: 'SEARCH', payload: { query, limit: limit || 8, ch } });
     });
   }
@@ -475,7 +481,13 @@
         : await fetchBySlug(slug);
 
       if (!commune) {
-        col1.innerHTML = `<p class="text-center text-gray-500 py-12">Commune introuvable : <strong>${esc(slug)}</strong></p>`;
+        col1.innerHTML = `
+          <div class="text-center py-16 fade-up">
+            <p class="text-4xl font-black text-gray-800 mb-3">🔍</p>
+            <p class="text-lg font-semibold text-white mb-2">Ville non trouvée</p>
+            <p class="text-sm text-gray-500 mb-6">Aucune commune ne correspond à <code class="text-indigo-400">${esc(slug)}</code>.</p>
+            <button onclick="navigate('/',event)" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-5 py-2 rounded-xl transition-colors">← Retour à la recherche</button>
+          </div>`;
         return;
       }
 

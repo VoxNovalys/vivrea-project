@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 concurrency:
   group: vivrea-update
@@ -14,11 +16,16 @@ concurrency:
 
 jobs:
   update-data:
-    name: Mise à jour des données → push → Vercel redéploie
+    name: Mise à jour des données → commit → GitHub Pages
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
       contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout
@@ -45,7 +52,7 @@ jobs:
           fi
           echo "Index : $(du -h data/index.json | cut -f1)"
 
-      - name: Commit et push
+      - name: Commit et push des données
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -56,3 +63,15 @@ jobs:
             git commit -m "chore(data): mise à jour automatique – $(date -u '+%Y-%m-%d %H:%M UTC') [skip ci]"
             git push origin HEAD
           fi
+
+      - name: Configuration GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Déploiement GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

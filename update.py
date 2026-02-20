@@ -90,7 +90,9 @@ def normalize_fuel_price(raw_str: str) -> Optional[float]:
     Règle : si la valeur brute > 100, c'est des millièmes → diviser par 1000.
     """
     try:
-        raw = float(raw_str)
+        # Normalise les variantes : virgule décimale, espaces (ex: "1,732" → "1.732")
+        cleaned = str(raw_str).strip().replace(' ', '').replace(',', '.')
+        raw = float(cleaned)
         if raw <= 0:
             return None
         if raw > 100:
