@@ -318,27 +318,39 @@
   `;
 
   function initWorker() {
-    try { worker = new Worker('./search.worker.js'); }
-    catch (_) {
-      worker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'application/javascript' })));
-    }
-    worker.onmessage = ({ data: { type, payload } }) => {
-      if (type === 'READY') {
-        state.workerReady = true;
-        const el = document.getElementById('worker-status');
-        if (el) {
-          el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> ${payload.size.toLocaleString('fr')} communes`;
-          el.classList.remove('hidden');
+    function attachHandlers() {
+      worker.onmessage = ({ data: { type, payload } }) => {
+        if (type === 'READY') {
+          state.workerReady = true;
+          const el = document.getElementById('worker-status');
+          if (el) {
+            el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> ${payload.size.toLocaleString('fr')} communes`;
+            el.classList.remove('hidden');
+          }
+          const sc = document.getElementById('stat-communes');
+          if (sc) sc.textContent = payload.size.toLocaleString('fr');
         }
-        const sc = document.getElementById('stat-communes');
-        if (sc) sc.textContent = payload.size.toLocaleString('fr');
-      }
-      if (type === 'RESULTS') {
-        const cb = workerCbs[payload.ch];
-        if (cb) { delete workerCbs[payload.ch]; cb(payload.results); }
-      }
-    };
-    worker.onerror = e => console.error('[Worker]', e);
+        if (type === 'RESULTS') {
+          const cb = workerCbs[payload.ch];
+          if (cb) { delete workerCbs[payload.ch]; cb(payload.results); }
+        }
+      };
+    }
+
+    try {
+      // Chemin absolu : fonctionne quelle que soit l'URL SPA courante (/ville/xxx, etc.)
+      worker = new Worker('/search.worker.js');
+      attachHandlers();
+      worker.onerror = () => {
+        console.warn('[Worker] /search.worker.js inaccessible – bascule vers le worker inline');
+        worker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'application/javascript' })));
+        attachHandlers();
+        loadIndex(); // Re-envoyer INIT au nouveau worker
+      };
+    } catch (_) {
+      worker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'application/javascript' })));
+      attachHandlers();
+    }
   }
 
   // Identifiant unique par requête → évite les collisions de channel
@@ -438,8 +450,9 @@
 
       _mainDebounce = setTimeout(async () => {
         if (!state.workerReady) {
-          console.log('[VivreÀ] Worker pas prêt pour :', q);
           loader?.classList.add('hidden');
+          dropdown.innerHTML = `<li class="px-4 py-3 text-sm text-gray-500 text-center">Chargement des données en cours…</li>`;
+          dropdown.classList.remove('hidden');
           return;
         }
         try {
@@ -907,13 +920,16 @@
       const data = await fetchJSON(`${DATA_BASE}/carburants.json`);
       if (!data?.stations?.length) throw new Error('vide');
 
-      // Comparaison String vs String pour le code postal
+      // Filtre : CP exact d'abord, fallback département si aucune station trouvée
       const cp  = String(commune.cp || '');
       const dep = String(commune.code_dep || '').padStart(2, '0');
 
-      const stations = data.stations.filter(s =>
-        String(s.cp) === cp || (dep && String(s.cp || '').startsWith(dep))
-      ).slice(0, 6);
+      let stations = data.stations.filter(s => String(s.cp) === cp);
+      const isNearby = !stations.length;
+      if (isNearby && dep) {
+        stations = data.stations.filter(s => String(s.cp || '').startsWith(dep));
+      }
+      stations = stations.slice(0, 6);
 
       if (!stations.length) {
         el.innerHTML = `<p class="text-xs text-gray-500">Aucune station dans ce secteur.</p>`;
@@ -923,6 +939,9 @@
       if (elId === 'fuel-main') {
         const TYPES = ['SP95', 'SP98', 'Gazole', 'E10', 'E85', 'GPLc'];
         const ts = new Date(data.updated_at).toLocaleString('fr');
+        // Met à jour le titre de la section selon qu'on affiche la ville exacte ou le département
+        const titleEl = el.closest('.bento-card')?.querySelector('h2');
+        if (titleEl) titleEl.textContent = isNearby ? 'Carburants à proximité (département)' : 'Carburants dans la ville';
         el.innerHTML = `
           <p class="text-xs text-gray-500 mb-3">Mis à jour : ${ts}</p>
           <div class="overflow-x-auto -mx-1">

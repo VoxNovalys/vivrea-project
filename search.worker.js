@@ -52,11 +52,11 @@ self.onmessage = function (e) {
   }
 
   if (type === 'SEARCH') {
-    const { query, limit = 8 } = payload;
+    const { query, limit = 8, ch = 'S' } = payload;
     const q = normalize(query);
 
     if (q.length < 1) {
-      self.postMessage({ type: 'RESULTS', payload: [] });
+      self.postMessage({ type: 'RESULTS', payload: { results: [], ch } });
       return;
     }
 
@@ -88,7 +88,7 @@ self.onmessage = function (e) {
 
     // On supprime le champ _score avant d'envoyer
     const top = results.slice(0, limit).map(({ _score, ...r }) => r);
-    self.postMessage({ type: 'RESULTS', payload: top });
+    self.postMessage({ type: 'RESULTS', payload: { results: top, ch } });
     return;
   }
 };

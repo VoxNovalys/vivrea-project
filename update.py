@@ -167,7 +167,7 @@ def fetch_dvf_stats() -> dict[str, dict]:
 
             for item in data["results"]:
                 raw_code = item.get("code_commune") or item.get("codgeo", "")
-                code = str(raw_code).strip() if raw_code else ""
+                code = insee_str(raw_code) if raw_code else ""  # zero-padded 5 chars
                 if code:
                     dvf[code] = {
                         "prix_m2_median":  item.get("prix_m2_median"),
@@ -193,15 +193,55 @@ def fetch_dvf_stats() -> dict[str, dict]:
 # Étape 3 – Fibre ARCEP
 # ---------------------------------------------------------------------------
 
+def find_arcep_resource_ids() -> list[str]:
+    """
+    Découverte dynamique des resource_id ARCEP via l'API CKAN package_search.
+    Complète les IDs hardcodés si l'API change.
+    """
+    ids: list[str] = []
+    try:
+        data = safe_get(
+            "https://data.arcep.fr/api/3/action/package_search",
+            params={"q": "déploiements ftth commune", "rows": 10},
+            timeout=30,
+        )
+        if not data or not data.get("result", {}).get("results"):
+            return ids
+        for pkg in data["result"]["results"]:
+            for res in pkg.get("resources", []):
+                if res.get("datastore_active") and "commune" in res.get("name", "").lower():
+                    rid = res.get("id", "")
+                    if rid and rid not in ids:
+                        ids.append(rid)
+                        log.info("ARCEP resource_id découvert dynamiquement : %s (%s)", rid, res.get("name", ""))
+    except Exception as e:
+        log.warning("ARCEP package_search échoué : %s", e)
+    return ids
+
+
 def fetch_arcep_fibre() -> dict[str, float]:
     log.info("=== ÉTAPE 3 : Fibre ARCEP ===")
     fibre: dict[str, float] = {}
 
-    RESOURCE_IDS = [
+    # IDs connus (fallback) + découverte dynamique
+    KNOWN_IDS = [
         "64a4e6f0-fc90-4d37-a9d8-1d8bfe7bab7e",
         "b8e68b0e-2a66-4c15-9d39-1fe3fce67e74",
     ]
-    FIBRE_COLS = ["tx_locaux_raccordables_ftth", "taux_ftth", "pct_ftth"]
+    dynamic_ids = find_arcep_resource_ids()
+    # Priorité aux IDs dynamiques, puis les connus
+    RESOURCE_IDS = dynamic_ids + [i for i in KNOWN_IDS if i not in dynamic_ids]
+
+    # Noms de colonnes possibles (le portail ARCEP les a changé plusieurs fois)
+    FIBRE_COLS = [
+        "tx_locaux_raccordables_ftth",
+        "taux_ftth",
+        "pct_ftth",
+        "tauxftth",
+        "tx_ftth",
+        "taux_raccordement_ftth",
+        "part_locaux_ftth",
+    ]
 
     try:
         data = None
@@ -214,23 +254,30 @@ def fetch_arcep_fibre() -> dict[str, float]:
             data = None
 
         if not data:
-            log.warning("ARCEP : aucun jeu de données.")
+            log.warning("ARCEP : aucun jeu de données disponible.")
             return fibre
 
         records = data["result"]["records"]
 
-        # Détecter la colonne fibre
-        fibre_col = next((c for c in FIBRE_COLS if records and c in records[0]), None)
-        log.info("ARCEP : colonne fibre = %s", fibre_col)
+        # Log toutes les colonnes disponibles pour faciliter le diagnostic
+        if records:
+            log.info("ARCEP colonnes disponibles : %s", list(records[0].keys()))
 
-        # Diagnostic : premiers enregistrements pour vérifier le format des codes
-        for rec in records[:5]:
+        # Détecter la première colonne fibre disponible
+        fibre_col = next((c for c in FIBRE_COLS if records and c in records[0]), None)
+        if not fibre_col:
+            log.warning("ARCEP : aucune colonne fibre reconnue parmi %s", FIBRE_COLS)
+            return fibre
+        log.info("ARCEP : colonne fibre utilisée = %s", fibre_col)
+
+        # Diagnostic : premiers enregistrements
+        for rec in records[:3]:
             log.info(
                 "ARCEP debug – code_commune=%r code_insee=%r %s=%r",
                 rec.get("code_commune"),
                 rec.get("code_insee"),
-                fibre_col or "?",
-                rec.get(fibre_col) if fibre_col else None,
+                fibre_col,
+                rec.get(fibre_col),
             )
 
         for record in records:
@@ -240,7 +287,7 @@ def fetch_arcep_fibre() -> dict[str, float]:
             if not code:
                 continue
 
-            taux_raw = record.get(fibre_col) if fibre_col else None
+            taux_raw = record.get(fibre_col)
             if taux_raw is None:
                 continue
             try:
