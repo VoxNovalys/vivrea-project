@@ -226,6 +226,21 @@ def fetch_dvf_stats() -> dict[str, dict]:
 
 ARCEP_DATAGOUV_SLUG = "le-marche-du-haut-et-tres-haut-debit-fixe-deploiements"
 
+# SSMSI – délinquance enregistrée (CSV.GZ communal, ≈36 Mo)
+CRIME_DATASET = (
+    "bases-statistiques-communale-departementale-et-regionale-de-la-delinquance"
+    "-enregistree-par-la-police-et-la-gendarmerie-nationales"
+)
+
+# INSEE Filosofi 2021 – revenus et pauvreté par commune (ZIP CSV, ≈1 Mo)
+FILOSOFI_URL = (
+    "https://www.insee.fr/fr/statistiques/fichier/7756729/"
+    "base-cc-filosofi-2021-geo2025_csv.zip"
+)
+
+# ATMO France GeoServer – IQA commune (WFS CSV)
+ATMO_WFS_BASE = "https://data.atmo-france.org/geoserver/ind/ows"
+
 
 def _read_dbf(data: bytes) -> list[dict]:
     """Lecteur DBF minimaliste (struct), sans dépendance externe.
@@ -451,10 +466,378 @@ def fetch_fuel_prices() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Étape 5 – Index + détails
+# Étape 5 – Sécurité / criminalité (SSMSI – data.gouv.fr)
 # ---------------------------------------------------------------------------
 
-def build_index_and_details(communes: list[dict], dvf: dict, fibre: dict) -> None:
+def fetch_crime_data() -> dict[str, dict]:
+    """
+    Télécharge les statistiques de délinquance communale (SSMSI / data.gouv.fr).
+    CSV(.GZ) ≈ 36 Mo, colonnes : Code.commune, faits, POP, annee.
+    Additionne tous les faits de toutes les catégories pour l'année la plus récente.
+    Retourne {code_insee: {"taux_pour_mille": X, "annee": Y}}.
+    Communes < 2 000 hab non couvertes par cette base.
+    """
+    import gzip, csv, io
+
+    log.info("=== ÉTAPE 5 : Criminalité (SSMSI) ===")
+    crime: dict[str, dict] = {}
+
+    try:
+        meta = safe_get(
+            f"https://www.data.gouv.fr/api/1/datasets/{CRIME_DATASET}/",
+            timeout=20,
+        )
+        if not meta or not meta.get("resources"):
+            log.warning("Crime : dataset non trouvé sur data.gouv.fr")
+            return crime
+
+        # Chercher la ressource CSV communale (pas dépt. ni régionale)
+        commune_res = None
+        for r in meta["resources"]:
+            title = (r.get("title", "") + r.get("description", "")).lower()
+            fmt   = r.get("format", "").lower()
+            url_l = r.get("url", "").lower()
+            is_csv = ("csv" in fmt or url_l.endswith(".csv")
+                      or url_l.endswith(".csv.gz") or url_l.endswith(".gz"))
+            if is_csv and ("commun" in title or "com." in title):
+                commune_res = r
+                break
+
+        # Fallback : première ressource CSV/GZ trouvée
+        if not commune_res:
+            for r in meta["resources"]:
+                fmt   = r.get("format", "").lower()
+                url_l = r.get("url", "").lower()
+                if "csv" in fmt or url_l.endswith((".csv", ".csv.gz", ".gz")):
+                    commune_res = r
+                    break
+
+        if not commune_res:
+            log.warning("Crime : aucune ressource CSV trouvée")
+            return crime
+
+        url = commune_res.get("url") or commune_res.get("latest")
+        log.info("Crime : téléchargement %s", url)
+        resp = SESSION.get(url, timeout=300, stream=False)
+        resp.raise_for_status()
+        raw = resp.content
+        log.info("Crime : %.1f Mo reçu", len(raw) / 1024 / 1024)
+
+        # Décompresser GZ si nécessaire
+        if raw[:2] == b"\x1f\x8b":
+            raw = gzip.decompress(raw)
+
+        text = raw.decode("utf-8-sig", errors="replace")
+        sep  = ";" if text.count(";") > text.count(",") else ","
+
+        faits_by:  dict[str, int] = {}
+        pop_by:    dict[str, int] = {}
+        annee_by:  dict[str, int] = {}
+
+        for row in csv.DictReader(io.StringIO(text), delimiter=sep):
+            code = (
+                row.get("Code.commune") or row.get("CODGEO") or
+                row.get("code_commune") or ""
+            ).strip()
+            if not code:
+                continue
+            code = code.zfill(5)
+
+            try:
+                faits = int(float(row.get("faits") or row.get("valeur") or "0"))
+            except (ValueError, TypeError):
+                faits = 0
+
+            try:
+                pop = int(float(row.get("POP") or row.get("pop") or "0"))
+            except (ValueError, TypeError):
+                pop = 0
+
+            try:
+                annee = int(str(row.get("annee") or row.get("Annee") or "0")[:4])
+            except (ValueError, TypeError):
+                annee = 0
+
+            prev = annee_by.get(code, 0)
+            if annee > prev:
+                # Année plus récente trouvée → réinitialiser l'accumulateur
+                faits_by[code] = faits
+                annee_by[code] = annee
+                if pop > 0:
+                    pop_by[code] = pop
+            elif annee == prev:
+                # Même année, catégorie différente → cumuler
+                faits_by[code] = faits_by.get(code, 0) + faits
+                if pop > 0:
+                    pop_by[code] = pop
+
+        for code, total_faits in faits_by.items():
+            pop  = pop_by.get(code, 0)
+            year = annee_by.get(code, 0)
+            if pop > 0:
+                crime[code] = {
+                    "taux_pour_mille": round(total_faits / pop * 1000, 1),
+                    "annee":           year,
+                }
+
+    except Exception as e:
+        log.warning("Crime indisponible : %s", e)
+
+    log.info("Crime : %d communes couvertes", len(crime))
+    return crime
+
+
+# ---------------------------------------------------------------------------
+# Étape 6 – Qualité de l'air (ATMO France WFS)
+# ---------------------------------------------------------------------------
+
+def fetch_air_quality() -> dict[str, dict]:
+    """
+    Récupère l'indice de qualité de l'air (IQA ATMO) par commune.
+    Source : GeoServer ATMO France, couche ind_atmo_{year}, type_zone=COM.
+    Essaie l'année la plus récente (année-1 → année-2 → année-3).
+    Retourne {code_insee: {"iqa_moyen": X, "label": "...", "annee": Y}}.
+    """
+    import csv, io
+
+    log.info("=== ÉTAPE 6 : Qualité de l'air (ATMO France) ===")
+    air: dict[str, dict] = {}
+
+    # Correspondance code_qual → libellé EAQI
+    _labels = {
+        1: "Bon", 2: "Moyen", 3: "Dégradé",
+        4: "Mauvais", 5: "Très mauvais", 6: "Extrêmement mauvais",
+    }
+
+    current_year = datetime.now().year
+
+    for year in range(current_year - 1, current_year - 4, -1):
+        date_str = f"{year}-12-31"
+        params = {
+            "service":      "WFS",
+            "version":      "2.0.0",
+            "request":      "GetFeature",
+            "TypeNames":    f"ind_atmo_{year}",
+            "outputformat": "csv",
+            "CQL_FILTER":   f"type_zone='COM' AND date_ech='{date_str}'",
+        }
+        try:
+            resp = SESSION.get(ATMO_WFS_BASE, params=params, timeout=120)
+            if resp.status_code != 200 or len(resp.content) < 1000:
+                log.info("Air : ind_atmo_%d non disponible, essai suivant…", year)
+                continue
+
+            text = resp.content.decode("utf-8-sig", errors="replace")
+            # Détecter une réponse d'erreur XML
+            if "<ExceptionReport" in text[:500] or "ServiceException" in text[:500]:
+                log.info("Air : ind_atmo_%d erreur WFS, essai suivant…", year)
+                continue
+
+            total_by: dict[str, int] = {}
+            count_by: dict[str, int] = {}
+
+            for row in csv.DictReader(io.StringIO(text)):
+                if (row.get("type_zone") or "").upper() != "COM":
+                    continue
+                code = (row.get("code_zone") or "").strip().zfill(5)
+                if not code:
+                    continue
+                try:
+                    qual = int(row.get("code_qual") or "0")
+                except (ValueError, TypeError):
+                    continue
+                if qual <= 0:
+                    continue
+                total_by[code] = total_by.get(code, 0) + qual
+                count_by[code] = count_by.get(code, 0) + 1
+
+            if not total_by:
+                log.info("Air : ind_atmo_%d – aucune donnée commune trouvée", year)
+                continue
+
+            for code in total_by:
+                iqa = round(total_by[code] / count_by[code], 1)
+                air[code] = {
+                    "iqa_moyen": iqa,
+                    "label":     _labels.get(min(round(iqa), 6), "Inconnu"),
+                    "annee":     year,
+                }
+
+            log.info("Air : %d communes (année %d)", len(air), year)
+            break
+
+        except Exception as e2:
+            log.info("Air : erreur %d – %s", year, e2)
+            continue
+
+    if not air:
+        log.warning("Air : aucune donnée disponible (ATMO France WFS inaccessible ?)")
+    return air
+
+
+# ---------------------------------------------------------------------------
+# Étape 7 – Revenus / pauvreté (INSEE Filosofi 2021)
+# ---------------------------------------------------------------------------
+
+def fetch_filosofi() -> dict[str, dict]:
+    """
+    Télécharge la base Filosofi 2021 (ZIP CSV ≈ 1 Mo) depuis insee.fr.
+    Colonnes : CODGEO, MED21 (revenu médian €/UC/an), TP6021 (taux pauvreté %).
+    Retourne {code_insee: {"revenu_median": X, "taux_pauvrete": Y, "annee": 2021}}.
+    """
+    import zipfile, csv, io
+
+    log.info("=== ÉTAPE 7 : Filosofi INSEE (revenus / pauvreté) ===")
+    socio: dict[str, dict] = {}
+
+    try:
+        resp = SESSION.get(FILOSOFI_URL, timeout=120)
+        resp.raise_for_status()
+        log.info("Filosofi : %.1f Mo reçu", len(resp.content) / 1024 / 1024)
+
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+            csv_names = [
+                n for n in z.namelist()
+                if n.lower().endswith(".csv")
+                and "meta" not in n.lower()
+                and "doc"  not in n.lower()
+            ]
+            if not csv_names:
+                csv_names = [n for n in z.namelist() if n.lower().endswith(".csv")]
+            if not csv_names:
+                log.warning("Filosofi : aucun CSV dans le ZIP")
+                return socio
+
+            log.info("Filosofi : lecture %s", csv_names[0])
+            raw = z.read(csv_names[0])
+
+        text = raw.decode("utf-8-sig", errors="replace")
+        sep  = ";" if text.count(";") > text.count(",") else ","
+
+        for row in csv.DictReader(io.StringIO(text), delimiter=sep):
+            code = (row.get("CODGEO") or row.get("codgeo") or "").strip()
+            if not code:
+                continue
+            code = code.zfill(5)
+
+            try:
+                med = float((row.get("MED21") or row.get("med21") or "").replace(",", "."))
+            except (ValueError, TypeError):
+                med = None
+
+            try:
+                tp = float((row.get("TP6021") or row.get("tp6021") or "").replace(",", "."))
+            except (ValueError, TypeError):
+                tp = None
+
+            if med is not None or tp is not None:
+                socio[code] = {
+                    "revenu_median": round(med, 0) if med is not None else None,
+                    "taux_pauvrete": round(tp, 1)  if tp  is not None else None,
+                    "annee":         2021,
+                }
+
+    except Exception as e:
+        log.warning("Filosofi indisponible : %s", e)
+
+    log.info("Filosofi : %d communes", len(socio))
+    return socio
+
+
+# ---------------------------------------------------------------------------
+# Étape 7b – Chômage (INSEE RP 2021 – emploi et pop active)
+# ---------------------------------------------------------------------------
+
+def fetch_chomage() -> dict[str, float]:
+    """
+    Télécharge la base RP 2021 INSEE (emploi + pop active) par commune.
+    Calcule taux_chomage = CHOM1564_P / ACT1564_P × 100.
+    Essaie plusieurs URLs directes puis data.gouv.fr en fallback.
+    Retourne {code_insee: taux_pct} ou {} si indisponible.
+    """
+    import zipfile, csv, io
+
+    log.info("=== ÉTAPE 7b : Chômage (INSEE RP 2021) ===")
+    chomage: dict[str, float] = {}
+
+    # URLs directes INSEE (identifiants de fichier potentiels – à jour 2025)
+    DIRECT_URLS = [
+        "https://www.insee.fr/fr/statistiques/fichier/7704681/base-cc-emploi-pop-active-2021_geo2025_csv.zip",
+        "https://www.insee.fr/fr/statistiques/fichier/6461107/base-cc-emploi-pop-active-2021_geo2023_csv.zip",
+        "https://www.insee.fr/fr/statistiques/fichier/6461107/base-cc-emploi-pop-active-2021_csv.zip",
+    ]
+
+    raw_content = None
+
+    for url in DIRECT_URLS:
+        try:
+            resp = SESSION.get(url, timeout=120)
+            if resp.status_code == 200 and len(resp.content) > 10_000:
+                log.info("Chômage : %s (%.1f Mo)", url, len(resp.content) / 1024 / 1024)
+                raw_content = resp.content
+                break
+        except Exception:
+            continue
+
+    if not raw_content:
+        log.warning("Chômage : URLs directes INSEE inaccessibles")
+        return chomage
+
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw_content)) as z:
+            csv_names = [
+                n for n in z.namelist()
+                if n.lower().endswith(".csv")
+                and "meta" not in n.lower()
+                and "doc"  not in n.lower()
+            ]
+            if not csv_names:
+                csv_names = [n for n in z.namelist() if n.lower().endswith(".csv")]
+            if not csv_names:
+                log.warning("Chômage : aucun CSV dans le ZIP")
+                return chomage
+
+            log.info("Chômage : lecture %s", csv_names[0])
+            raw = z.read(csv_names[0])
+
+        text = raw.decode("utf-8-sig", errors="replace")
+        sep  = ";" if text.count(";") > text.count(",") else ","
+
+        for row in csv.DictReader(io.StringIO(text), delimiter=sep):
+            code = (row.get("CODGEO") or row.get("codgeo") or "").strip()
+            if not code:
+                continue
+            code = code.zfill(5)
+
+            try:
+                chom = float(row.get("CHOM1564_P") or row.get("chom1564_p") or "0")
+                act  = float(row.get("ACT1564_P")  or row.get("act1564_p")  or "0")
+            except (ValueError, TypeError):
+                continue
+
+            if act > 0:
+                chomage[code] = round(chom / act * 100, 1)
+
+    except Exception as e:
+        log.warning("Chômage parsing erreur : %s", e)
+
+    log.info("Chômage : %d communes", len(chomage))
+    return chomage
+
+
+# ---------------------------------------------------------------------------
+# Étape 8 – Index + détails
+# ---------------------------------------------------------------------------
+
+def build_index_and_details(
+    communes: list[dict],
+    dvf:      dict,
+    fibre:    dict,
+    crime:    dict,
+    air:      dict,
+    socio:    dict,
+    chomage:  dict,
+) -> None:
     """
     Génère :
     - data/index.json           : index léger pour l'autocomplete (<1.5 Mo)
@@ -462,7 +845,7 @@ def build_index_and_details(communes: list[dict], dvf: dict, fibre: dict) -> Non
 
     RÈGLE : code_insee TOUJOURS stocké en String ("74081", jamais 74081).
     """
-    log.info("=== ÉTAPE 5 : Index + détails ===")
+    log.info("=== ÉTAPE 8 : Index + détails ===")
 
     index_entries: list[list] = []
     details_by_dep: dict[str, list[dict]] = {}
@@ -504,6 +887,25 @@ def build_index_and_details(communes: list[dict], dvf: dict, fibre: dict) -> Non
         if fibre_pct is not None:
             detail["fibre_pct"] = fibre_pct
 
+        # Criminalité (SSMSI)
+        crime_d = crime.get(code_insee)
+        if crime_d:
+            detail["securite"] = crime_d
+
+        # Qualité de l'air (ATMO France)
+        air_d = air.get(code_insee)
+        if air_d:
+            detail["air"] = air_d
+
+        # Socio-économique : Filosofi + chômage
+        socio_d = socio.get(code_insee)
+        chom_v  = chomage.get(code_insee)
+        if socio_d or chom_v is not None:
+            socio_entry = dict(socio_d) if socio_d else {}
+            if chom_v is not None:
+                socio_entry["taux_chomage"] = chom_v
+            detail["socio"] = socio_entry
+
         details_by_dep.setdefault(code_dep, []).append(detail)
 
     write_json(INDEX_FILE, index_entries, compact=True)
@@ -528,12 +930,16 @@ def write_meta(nb_communes: int) -> None:
     write_json(META_FILE, {
         "last_update": datetime.utcnow().isoformat() + "Z",
         "nb_communes": nb_communes,
-        "version":     "2.2",
+        "version":     "2.3",
         "sources": {
-            "communes":   "https://geo.api.gouv.fr",
-            "immobilier": "https://apidf-preprod.cerema.fr",
-            "fibre":      "https://data.arcep.fr",
-            "carburants": "https://donnees.roulez-eco.fr/opendata/instantane",
+            "communes":    "https://geo.api.gouv.fr",
+            "immobilier":  "https://apidf-preprod.cerema.fr",
+            "fibre":       "https://www.data.gouv.fr (ARCEP)",
+            "carburants":  "https://donnees.roulez-eco.fr/opendata/instantane",
+            "criminalite": "https://www.data.gouv.fr (SSMSI)",
+            "air":         "https://data.atmo-france.org",
+            "revenus":     "https://www.insee.fr (Filosofi 2021)",
+            "chomage":     "https://www.insee.fr (RP 2021)",
         },
     })
 
@@ -544,7 +950,7 @@ def write_meta(nb_communes: int) -> None:
 
 def main() -> None:
     log.info("╔══════════════════════════════════════════════╗")
-    log.info("║   VivreÀ – Mise à jour des données v2.2     ║")
+    log.info("║   VivreÀ – Mise à jour des données v2.3     ║")
     log.info("╚══════════════════════════════════════════════╝")
     start = time.time()
 
@@ -555,7 +961,14 @@ def main() -> None:
     dvf_stats  = fetch_dvf_stats()
     fibre_data = fetch_arcep_fibre()
     fetch_fuel_prices()
-    build_index_and_details(communes, dvf_stats, fibre_data)
+    crime_data = fetch_crime_data()
+    air_data   = fetch_air_quality()
+    socio_data = fetch_filosofi()
+    chomage    = fetch_chomage()
+    build_index_and_details(
+        communes, dvf_stats, fibre_data,
+        crime_data, air_data, socio_data, chomage,
+    )
     write_meta(len(communes))
 
     log.info("✅ Terminé en %.1f s – %d communes indexées", time.time() - start, len(communes))
