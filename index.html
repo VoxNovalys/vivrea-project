@@ -266,6 +266,7 @@
   // ── État global ───────────────────────────────────────────────────────────
   const state = {
     workerReady:    false,
+    workerSize:     null,   // nombre de communes indexées (mis à jour par READY)
     currentCommune: null,   // commune actuellement affichée
   };
   const depCache = {};      // cache des fichiers details/{dep}.json
@@ -322,6 +323,7 @@
       worker.onmessage = ({ data: { type, payload } }) => {
         if (type === 'READY') {
           state.workerReady = true;
+          state.workerSize  = payload.size;
           const el = document.getElementById('worker-status');
           if (el) {
             el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> ${payload.size.toLocaleString('fr')} communes`;
@@ -419,6 +421,11 @@
   function renderHome(container) {
     setSEO('VivreÀ – Découvrez votre prochaine commune', 'Base de données exhaustive des 35 000 communes françaises.', BASE_URL + '/');
     container.appendChild(document.getElementById('tpl-home').content.cloneNode(true));
+    // Si le worker a déjà envoyé READY, l'élément vient d'être cloné → on l'hydrate immédiatement
+    if (state.workerSize != null) {
+      const sc = document.getElementById('stat-communes');
+      if (sc) sc.textContent = state.workerSize.toLocaleString('fr');
+    }
     try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(_) {}
     initMainSearch();
     if (typeof FuelSearch !== 'undefined') {
@@ -563,7 +570,7 @@
           if (commune.immo || !commune.code_insee) return;
           const base = new Date().getFullYear();
           for (const annee of [base - 2, base - 3, base - 4]) {
-            const dvf = await fetchJSON(
+            const dvf = await fetchExternal(
               `https://apidf-preprod.cerema.fr/indicateurs/dv3f/communes/?code_commune=${commune.code_insee}&annee=${annee}`
             );
             console.log('[DVF]', commune.code_insee, annee, dvf?.count, dvf?.results?.[0]);
@@ -953,7 +960,7 @@
       'tauxftth','tx_ftth','taux_raccordement_ftth','part_locaux_ftth',
     ];
     for (const rid of KNOWN_IDS) {
-      const data = await fetchJSON(
+      const data = await fetchExternal(
         `https://data.arcep.fr/api/3/action/datastore_search?resource_id=${rid}` +
         `&filters=${encodeURIComponent(JSON.stringify({ code_commune: code_insee }))}&limit=5`
       );
@@ -1268,6 +1275,11 @@
   // ── Utils ─────────────────────────────────────────────────────────────────
   async function fetchJSON(url) {
     try { const r = await fetch(url, { cache: 'no-store' }); return r.ok ? r.json() : null; }
+    catch { return null; }
+  }
+  // Variante sans header custom : évite le preflight CORS pour les API externes
+  async function fetchExternal(url) {
+    try { const r = await fetch(url); return r.ok ? r.json() : null; }
     catch { return null; }
   }
 
