@@ -60,12 +60,8 @@ const FuelSearch = (() => {
       .filter(r => {
         if (carburant && carburant !== 'Tous' && r.carburant !== carburant) return false;
         if (!term) return true;
-        return (
-          norm(r.ville).includes(term)   ||
-          norm(r.nom).includes(term)     ||
-          norm(r.adresse).includes(term) ||
-          r.cp.startsWith(term)
-        );
+        // On ne recherche que dans la ville
+        return norm(r.ville).includes(term);
       })
       .sort((a, b) => a.prix - b.prix)
       .slice(0, 20);
