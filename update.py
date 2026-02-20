@@ -27,8 +27,9 @@ log = logging.getLogger("vivrea-update")
 # Constantes
 # ---------------------------------------------------------------------------
 GEO_API   = "https://geo.api.gouv.fr"
-DVF_API   = "https://apidf-preprod.cerema.fr/indicateurs/dv3f/communes"
-ARCEP_API = "https://data.arcep.fr/api/3/action/datastore_search"
+# Nouvelle URL DVF CEREMA (l'ancienne /indicateurs/dv3f/communes retourne 404 depuis 2025)
+DVF_API   = "https://apidf-preprod.cerema.fr/indicateurs/dv3f/prix/annuel/"
+# ARCEP : data.arcep.fr (CKAN) hors ligne — nouvelle source via data.gouv.fr (voir fetch_arcep_fibre)
 FUEL_API  = "https://donnees.roulez-eco.fr/opendata/instantane"
 
 DATA_DIR    = Path("data")
@@ -151,16 +152,24 @@ def fetch_all_communes() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def fetch_dvf_stats() -> dict[str, dict]:
+    """
+    Récupère les indicateurs DV3F par commune depuis la nouvelle API CEREMA.
+
+    Nouvelle URL (depuis 2025) : /indicateurs/dv3f/prix/annuel/
+    Paramètres requis           : echelle=communes, annee=YYYY
+    Champ commune               : item["code"]   (pas code_commune)
+    Champ prix/m²               : item["pxm2_median_cod111"]  (appartements)
+    Champ nb transactions       : item["nbtrans_cod111"]
+    """
     log.info("=== ÉTAPE 2 : DVF / immobilier ===")
     dvf: dict[str, dict] = {}
 
     try:
         current_year = datetime.now().year
-        # DV3F data is published ~6-12 months after the reference year.
-        # In early 2026, data for 2025 is not yet available → try 2024 first, then 2023.
+        # Sonde : DV3F 2025-1 inclut 2024 ; on essaie 2024 puis 2023 puis 2025
         annee = None
-        for try_year in [current_year - 2, current_year - 1, current_year - 3]:
-            probe = safe_get(DVF_API, params={"annee": try_year, "page_size": 1}, timeout=30)
+        for try_year in [current_year - 2, current_year - 3, current_year - 1]:
+            probe = safe_get(DVF_API, params={"echelle": "communes", "annee": try_year, "page_size": 1}, timeout=30)
             if probe and probe.get("results"):
                 annee = try_year
                 log.info("DVF : données disponibles pour l'année %d", annee)
@@ -170,23 +179,25 @@ def fetch_dvf_stats() -> dict[str, dict]:
             log.warning("DVF : aucune année disponible, abandon.")
             return dvf
 
-        params = {"annee": annee, "ordering": "-nb_ventes", "page_size": 500, "page": 1}
+        params = {"echelle": "communes", "annee": annee, "page_size": 500, "page": 1}
         page = 1
 
         while True:
             params["page"] = page
-            data = safe_get(DVF_API, params=params, timeout=45)
+            data = safe_get(DVF_API, params=params, timeout=60)
             if not data or "results" not in data or not data["results"]:
                 break
 
             for item in data["results"]:
-                raw_code = item.get("code_commune") or item.get("codgeo", "")
-                code = insee_str(raw_code) if raw_code else ""  # zero-padded 5 chars
-                if code:
+                # Le champ commune s'appelle "code" dans la nouvelle API
+                raw_code = item.get("code") or item.get("code_commune") or item.get("codgeo", "")
+                code = insee_str(raw_code) if raw_code else ""
+                pxm2 = item.get("pxm2_median_cod111")   # Prix médian m² – appartements
+                if code and pxm2 is not None:
                     dvf[code] = {
-                        "prix_m2_median":  item.get("prix_m2_median"),
-                        "loyer_median":    item.get("loyer_median"),
-                        "nb_transactions": item.get("nb_ventes"),
+                        "prix_m2_median":  round(float(pxm2), 0),
+                        "loyer_median":    None,
+                        "nb_transactions": item.get("nbtrans_cod111"),
                         "annee_dvf":       annee,
                     }
 
@@ -194,129 +205,146 @@ def fetch_dvf_stats() -> dict[str, dict]:
             if not data.get("next"):
                 break
             page += 1
-            time.sleep(0.1)
+            time.sleep(0.15)
 
     except Exception as e:
         log.warning("DVF indisponible : %s", e)
 
-    log.info("DVF : %d communes", len(dvf))
+    log.info("DVF : %d communes avec données immo", len(dvf))
     return dvf
 
 
 # ---------------------------------------------------------------------------
-# Étape 3 – Fibre ARCEP
+# Étape 3 – Fibre ARCEP (source : data.gouv.fr, Shapefile/DBF)
+# ---------------------------------------------------------------------------
+# L'ancien portail data.arcep.fr (CKAN) est hors ligne depuis 2025.
+# Les données sont désormais publiées sur :
+#   https://www.data.gouv.fr/fr/datasets/le-marche-du-haut-et-tres-haut-debit-fixe-deploiements/
+# Format : ZIP contenant un Shapefile ; le fichier .dbf contient les attributs.
+# Colonnes utiles : INSEE_COM (code commune), ftth (locaux raccordables), Locaux (total)
 # ---------------------------------------------------------------------------
 
-def find_arcep_resource_ids() -> list[str]:
-    """
-    Découverte dynamique des resource_id ARCEP via l'API CKAN package_search.
-    Complète les IDs hardcodés si l'API change.
-    """
-    ids: list[str] = []
-    try:
-        data = safe_get(
-            "https://data.arcep.fr/api/3/action/package_search",
-            params={"q": "déploiements ftth commune", "rows": 10},
-            timeout=30,
-        )
-        if not data or not data.get("result", {}).get("results"):
-            return ids
-        for pkg in data["result"]["results"]:
-            for res in pkg.get("resources", []):
-                if res.get("datastore_active") and "commune" in res.get("name", "").lower():
-                    rid = res.get("id", "")
-                    if rid and rid not in ids:
-                        ids.append(rid)
-                        log.info("ARCEP resource_id découvert dynamiquement : %s (%s)", rid, res.get("name", ""))
-    except Exception as e:
-        log.warning("ARCEP package_search échoué : %s", e)
-    return ids
+ARCEP_DATAGOUV_SLUG = "le-marche-du-haut-et-tres-haut-debit-fixe-deploiements"
+
+
+def _read_dbf(data: bytes) -> list[dict]:
+    """Lecteur DBF minimaliste (struct), sans dépendance externe.
+    Supporte les champs de type C (char) et N/F (numérique)."""
+    import io, struct
+
+    buf = io.BytesIO(data)
+    header = buf.read(32)
+    if len(header) < 32:
+        return []
+
+    num_records  = struct.unpack_from("<I", header, 4)[0]
+    header_size  = struct.unpack_from("<H", header, 8)[0]
+    record_size  = struct.unpack_from("<H", header, 10)[0]
+
+    fields: list[tuple[str, str, int]] = []
+    while True:
+        fd = buf.read(32)
+        if not fd or fd[0] == 0x0D or len(fd) < 32:
+            break
+        name  = fd[0:11].split(b"\x00")[0].decode("latin-1").strip()
+        ftype = chr(fd[11])
+        flen  = fd[16]
+        fields.append((name, ftype, flen))
+
+    buf.seek(header_size)
+    records = []
+    for _ in range(num_records):
+        raw = buf.read(record_size)
+        if not raw or len(raw) < record_size or raw[0] == 0x2A:   # 0x2A = supprimé
+            continue
+        rec: dict = {}
+        pos = 1   # sauter le flag de suppression
+        for name, ftype, flen in fields:
+            raw_val = raw[pos: pos + flen].decode("latin-1", errors="replace").strip()
+            if ftype in ("N", "F"):
+                try:
+                    rec[name] = float(raw_val) if raw_val else 0.0
+                except ValueError:
+                    rec[name] = 0.0
+            else:
+                rec[name] = raw_val
+            pos += flen
+        records.append(rec)
+    return records
 
 
 def fetch_arcep_fibre() -> dict[str, float]:
-    log.info("=== ÉTAPE 3 : Fibre ARCEP ===")
+    """
+    Télécharge le ZIP Commune le plus récent depuis data.gouv.fr (ARCEP THD),
+    parse le DBF et retourne {code_insee: fibre_pct}.
+    Aucune dépendance extra (struct + zipfile de la stdlib).
+    """
+    import io, zipfile
+
+    log.info("=== ÉTAPE 3 : Fibre ARCEP (data.gouv.fr) ===")
     fibre: dict[str, float] = {}
 
-    # IDs connus (fallback) + découverte dynamique
-    KNOWN_IDS = [
-        "64a4e6f0-fc90-4d37-a9d8-1d8bfe7bab7e",
-        "b8e68b0e-2a66-4c15-9d39-1fe3fce67e74",
-    ]
-    dynamic_ids = find_arcep_resource_ids()
-    # Priorité aux IDs dynamiques, puis les connus
-    RESOURCE_IDS = dynamic_ids + [i for i in KNOWN_IDS if i not in dynamic_ids]
-
-    # Noms de colonnes possibles (le portail ARCEP les a changé plusieurs fois)
-    FIBRE_COLS = [
-        "tx_locaux_raccordables_ftth",
-        "taux_ftth",
-        "pct_ftth",
-        "tauxftth",
-        "tx_ftth",
-        "taux_raccordement_ftth",
-        "part_locaux_ftth",
-    ]
-
     try:
-        data = None
-        for rid in RESOURCE_IDS:
-            data = safe_get(ARCEP_API, params={"resource_id": rid, "limit": 32000, "offset": 0}, timeout=60)
-            if data and data.get("result", {}).get("records"):
-                log.info("ARCEP resource_id=%s → %d enregistrements", rid, len(data["result"]["records"]))
-                break
-            log.warning("ARCEP resource_id=%s : vide", rid)
-            data = None
-
-        if not data:
-            log.warning("ARCEP : aucun jeu de données disponible.")
+        # 1. Récupérer la liste des ressources du dataset
+        meta = safe_get(
+            f"https://www.data.gouv.fr/api/1/datasets/{ARCEP_DATAGOUV_SLUG}/",
+            timeout=20,
+        )
+        if not meta or not meta.get("resources"):
+            log.warning("ARCEP : impossible de lister les ressources data.gouv.fr")
             return fibre
 
-        records = data["result"]["records"]
+        # 2. Trouver le ZIP Commune le plus récent (1er dans la liste = le plus récent)
+        commune_zips = [
+            r for r in meta["resources"]
+            if r.get("format", "").lower() == "zip"
+            and "commune" in (r.get("title", "") + r.get("url", "")).lower()
+        ]
+        if not commune_zips:
+            log.warning("ARCEP : aucun ZIP Commune trouvé dans le dataset")
+            return fibre
 
-        # Log toutes les colonnes disponibles pour faciliter le diagnostic
+        zip_url = commune_zips[0].get("url") or commune_zips[0].get("latest")
+        log.info("ARCEP : téléchargement %s", zip_url)
+
+        # 3. Télécharger le ZIP (≈31 Mo)
+        resp = SESSION.get(zip_url, timeout=180, stream=False)
+        resp.raise_for_status()
+        log.info("ARCEP : ZIP reçu (%.1f Mo)", len(resp.content) / 1024 / 1024)
+
+        # 4. Extraire et parser le DBF
+        with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+            dbf_names = [n for n in z.namelist() if n.lower().endswith(".dbf")]
+            if not dbf_names:
+                log.warning("ARCEP : aucun fichier .dbf dans le ZIP")
+                return fibre
+            log.info("ARCEP : lecture %s", dbf_names[0])
+            dbf_data = z.read(dbf_names[0])
+
+        records = _read_dbf(dbf_data)
+        log.info("ARCEP : %d enregistrements DBF", len(records))
         if records:
-            log.info("ARCEP colonnes disponibles : %s", list(records[0].keys()))
+            log.info("ARCEP : colonnes = %s", list(records[0].keys()))
 
-        # Détecter la première colonne fibre disponible
-        fibre_col = next((c for c in FIBRE_COLS if records and c in records[0]), None)
-        if not fibre_col:
-            log.warning("ARCEP : aucune colonne fibre reconnue parmi %s", FIBRE_COLS)
-            return fibre
-        log.info("ARCEP : colonne fibre utilisée = %s", fibre_col)
-
-        # Diagnostic : premiers enregistrements
-        for rec in records[:3]:
-            log.info(
-                "ARCEP debug – code_commune=%r code_insee=%r %s=%r",
-                rec.get("code_commune"),
-                rec.get("code_insee"),
-                fibre_col,
-                rec.get(fibre_col),
-            )
-
-        for record in records:
-            # ARCEP : code_commune = code INSEE (pas le code postal)
-            raw_code = record.get("code_commune") or record.get("code_insee") or ""
-            code = insee_str(raw_code)
-            if not code:
-                continue
-
-            taux_raw = record.get(fibre_col)
-            if taux_raw is None:
-                continue
-            try:
-                taux = float(taux_raw)
-                # Auto-détection ratio [0;1] ou pourcentage [0;100]
-                fibre_pct = round(taux if taux > 1 else taux * 100, 1)
-                fibre[code] = min(fibre_pct, 100.0)
-            except (ValueError, TypeError):
-                pass
+        # 5. Calculer le taux FTTH par commune
+        for rec in records:
+            code   = str(rec.get("INSEE_COM", "")).strip().zfill(5)
+            locaux = float(rec.get("Locaux", 0) or 0)
+            ftth   = float(rec.get("ftth",   0) or 0)
+            if code and locaux > 0:
+                pct = round(ftth / locaux * 100, 1)
+                fibre[code] = min(pct, 100.0)
 
     except Exception as e:
         log.warning("ARCEP indisponible : %s", e)
 
-    log.info("ARCEP : %d communes avec fibre", len(fibre))
+    log.info("ARCEP : %d communes avec données fibre", len(fibre))
     return fibre
+
+
+# ── Ancienne section supprimée (CKAN data.arcep.fr hors ligne depuis 2025) ──
+# Les fonctions find_arcep_resource_ids() et l'ancien fetch_arcep_fibre() ont
+# été remplacées par la version ci-dessus utilisant data.gouv.fr.
 
 
 # ---------------------------------------------------------------------------

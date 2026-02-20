@@ -565,22 +565,24 @@
       // Fallbacks parallèles : DVF (CEREMA) + Fibre (ARCEP CKAN)
       // Les deux sont silencieux si CORS ou réseau indisponible (fetchJSON renvoie null)
       await Promise.all([
-        // DVF – essaie 2024, 2023, 2022 (2025 pas encore publié en début d'année)
+        // DVF – nouvelle API CEREMA (ancienne URL /indicateurs/dv3f/communes → 404)
+        // Nouvelle URL : /indicateurs/dv3f/prix/annuel/?code=INSEE&echelle=communes&annee=YYYY
+        // Champs : pxm2_median_cod111 (appartements), nbtrans_cod111
         (async () => {
           if (commune.immo || !commune.code_insee) return;
           const base = new Date().getFullYear();
           for (const annee of [base - 2, base - 3, base - 4]) {
             const dvf = await fetchExternal(
-              `https://apidf-preprod.cerema.fr/indicateurs/dv3f/communes/?code_commune=${commune.code_insee}&annee=${annee}`
+              `https://apidf-preprod.cerema.fr/indicateurs/dv3f/prix/annuel/?code=${commune.code_insee}&echelle=communes&annee=${annee}`
             );
-            console.log('[DVF]', commune.code_insee, annee, dvf?.count, dvf?.results?.[0]);
-            if (!dvf) break; // CORS/réseau – inutile de retenter d'autres années
+            console.log('[DVF]', commune.code_insee, annee, 'count:', dvf?.count, 'pxm2:', dvf?.results?.[0]?.pxm2_median_cod111);
+            if (!dvf) break; // réseau indisponible – inutile de retenter
             const r = dvf?.results?.[0];
-            if (r?.prix_m2_median != null) {
+            if (r?.pxm2_median_cod111 != null) {
               commune.immo = {
-                prix_m2_median:  r.prix_m2_median,
-                loyer_median:    r.loyer_median    ?? null,
-                nb_transactions: r.nb_ventes       ?? null,
+                prix_m2_median:  r.pxm2_median_cod111,
+                loyer_median:    null,
+                nb_transactions: r.nbtrans_cod111 ?? null,
                 annee_dvf:       annee,
               };
               break;
