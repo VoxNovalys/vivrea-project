@@ -155,7 +155,21 @@ def fetch_dvf_stats() -> dict[str, dict]:
     dvf: dict[str, dict] = {}
 
     try:
-        annee = datetime.now().year - 1
+        current_year = datetime.now().year
+        # DV3F data is published ~6-12 months after the reference year.
+        # In early 2026, data for 2025 is not yet available → try 2024 first, then 2023.
+        annee = None
+        for try_year in [current_year - 2, current_year - 1, current_year - 3]:
+            probe = safe_get(DVF_API, params={"annee": try_year, "page_size": 1}, timeout=30)
+            if probe and probe.get("results"):
+                annee = try_year
+                log.info("DVF : données disponibles pour l'année %d", annee)
+                break
+            log.info("DVF : aucune donnée pour %d, essai suivant…", try_year)
+        if not annee:
+            log.warning("DVF : aucune année disponible, abandon.")
+            return dvf
+
         params = {"annee": annee, "ordering": "-nb_ventes", "page_size": 500, "page": 1}
         page = 1
 

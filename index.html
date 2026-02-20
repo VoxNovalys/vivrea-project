@@ -555,25 +555,41 @@
         `${BASE_URL}/ville/${commune.code_insee}`,
       );
 
-      // Fallback DVF : si le JSON local ne contient pas les données immo,
-      // tenter un appel direct à l'API CEREMA (open data, CORS autorisé)
-      if (!commune.immo && commune.code_insee) {
-        try {
-          const annee = new Date().getFullYear() - 1;
-          const dvf = await fetchJSON(
-            `https://apidf-preprod.cerema.fr/indicateurs/dv3f/communes?code_commune=${commune.code_insee}&annee=${annee}`
-          );
-          const r = dvf?.results?.[0];
-          if (r?.prix_m2_median) {
-            commune.immo = {
-              prix_m2_median:  r.prix_m2_median,
-              loyer_median:    r.loyer_median    ?? null,
-              nb_transactions: r.nb_ventes       ?? null,
-              annee_dvf:       annee,
-            };
+      // Fallbacks parallèles : DVF (CEREMA) + Fibre (ARCEP CKAN)
+      // Les deux sont silencieux si CORS ou réseau indisponible (fetchJSON renvoie null)
+      await Promise.all([
+        // DVF – essaie 2024, 2023, 2022 (2025 pas encore publié en début d'année)
+        (async () => {
+          if (commune.immo || !commune.code_insee) return;
+          const base = new Date().getFullYear();
+          for (const annee of [base - 2, base - 3, base - 4]) {
+            const dvf = await fetchJSON(
+              `https://apidf-preprod.cerema.fr/indicateurs/dv3f/communes/?code_commune=${commune.code_insee}&annee=${annee}`
+            );
+            console.log('[DVF]', commune.code_insee, annee, dvf?.count, dvf?.results?.[0]);
+            if (!dvf) break; // CORS/réseau – inutile de retenter d'autres années
+            const r = dvf?.results?.[0];
+            if (r?.prix_m2_median != null) {
+              commune.immo = {
+                prix_m2_median:  r.prix_m2_median,
+                loyer_median:    r.loyer_median    ?? null,
+                nb_transactions: r.nb_ventes       ?? null,
+                annee_dvf:       annee,
+              };
+              break;
+            }
           }
-        } catch (_) { /* silencieux */ }
-      }
+        })(),
+        // Fibre – fallback ARCEP CKAN si absent du JSON local
+        (async () => {
+          if (commune.fibre_pct != null || !commune.code_insee) return;
+          const pct = await fetchFibreARCEP(commune.code_insee);
+          if (pct != null) {
+            commune.fibre_pct = pct;
+            console.log('[ARCEP] fibre_pct =', pct, commune.code_insee);
+          }
+        })(),
+      ]);
 
       col1.innerHTML = buildVilleHTML(commune);
       col1.classList.add('fade-up');
@@ -925,6 +941,35 @@
     loadFuelIntoEl('fuel-cmp', b);
   }
 
+  // ── ARCEP fibre – fallback client-side via CKAN ──────────────────────────
+  async function fetchFibreARCEP(code_insee) {
+    // Resource IDs connus (même liste que update.py)
+    const KNOWN_IDS = [
+      '64a4e6f0-fc90-4d37-a9d8-1d8bfe7bab7e',
+      'b8e68b0e-2a66-4c15-9d39-1fe3fce67e74',
+    ];
+    const FIBRE_COLS = [
+      'tx_locaux_raccordables_ftth','taux_ftth','pct_ftth',
+      'tauxftth','tx_ftth','taux_raccordement_ftth','part_locaux_ftth',
+    ];
+    for (const rid of KNOWN_IDS) {
+      const data = await fetchJSON(
+        `https://data.arcep.fr/api/3/action/datastore_search?resource_id=${rid}` +
+        `&filters=${encodeURIComponent(JSON.stringify({ code_commune: code_insee }))}&limit=5`
+      );
+      console.log('[ARCEP]', rid, data?.result?.records?.length ?? 'null');
+      const records = data?.result?.records;
+      if (!records?.length) { if (!data) break; continue; }
+      const rec = records[0];
+      const fcol = Object.keys(rec).find(k => FIBRE_COLS.includes(k));
+      if (fcol && rec[fcol] != null) {
+        const val = parseFloat(rec[fcol]);
+        if (!isNaN(val)) return val > 1 ? Math.round(val * 10) / 10 : Math.round(val * 1000) / 10;
+      }
+    }
+    return null;
+  }
+
   // ── Carburants ────────────────────────────────────────────────────────────
 
   /**
@@ -1007,6 +1052,7 @@
                   <th class="pb-2 pr-4 font-medium">Station</th>
                   ${hasGeo ? '<th class="pb-2 pr-3 font-medium text-right">Dist.</th>' : ''}
                   ${TYPES.map(t => `<th class="pb-2 pr-3 font-medium">${t}</th>`).join('')}
+                  <th class="pb-2 pl-2 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -1024,19 +1070,18 @@
                   return `
                   <tr class="border-b border-border/40 last:border-0">
                     <td class="py-2 pr-4 max-w-[180px]">
-                      <div class="flex items-center gap-1">
-                        <div class="min-w-0">
-                          <p class="text-gray-300 truncate leading-snug">${esc(name)}</p>
-                          ${showCity ? `<p class="text-gray-600 truncate leading-none mt-0.5" style="font-size:0.65rem">${esc(city)}</p>` : ''}
-                        </div>
-                        <a href="${esc(mapsUrl)}" target="_blank" rel="noopener"
-                           class="shrink-0 ml-1 text-gray-600 hover:text-indigo-400 transition-colors" title="Google Maps">
-                          <svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-                        </a>
-                      </div>
+                      <p class="text-gray-300 truncate leading-snug">${esc(name)}</p>
+                      ${showCity ? `<p class="text-gray-600 truncate leading-none mt-0.5" style="font-size:0.65rem">${esc(city)}</p>` : ''}
                     </td>
                     ${hasGeo ? `<td class="py-2 pr-3 text-gray-500 text-right whitespace-nowrap">${distStr}</td>` : ''}
                     ${TYPES.map(t => `<td class="py-2 pr-3 tabular-nums ${s.prix[t] ? 'text-white' : 'text-gray-600'}">${fmtFuelPrice(s.prix[t])}</td>`).join('')}
+                    <td class="py-2 pl-2 whitespace-nowrap">
+                      <a href="${esc(mapsUrl)}" target="_blank" rel="noopener" title="Voir sur Google Maps"
+                         class="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/30 transition-colors font-medium">
+                        <svg width="10" height="10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        Maps
+                      </a>
+                    </td>
                   </tr>`;
                 }).join('')}
               </tbody>
