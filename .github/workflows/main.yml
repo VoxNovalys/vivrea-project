@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths-ignore:
+      - 'data/**'
 
 permissions:
   contents: write
@@ -12,34 +14,33 @@ permissions:
 
 jobs:
   build-and-deploy:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
-      - name: Python Setup
-        uses: actions/setup-python@v5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Install & Run
         run: |
           pip install requests
-          python update.py || echo "Script Python a fini avec des alertes"
+          python update.py
 
-      - name: Commit et push des données
+      - name: Commit data
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/
-          # On essaie de commit, si rien, on continue. Si conflit, on force le push.
-          if git commit -m "chore(data): mise à jour automatique [skip ci]"; then
-            git push origin HEAD --force
-          else
-            echo "Aucun changement à committer."
-          fi
+          git commit -m "chore(data): mise à jour automatique" || echo "No changes"
+          git push
 
-      - name: Upload & Deploy
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: '.'
