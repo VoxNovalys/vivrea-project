@@ -617,6 +617,23 @@
     const fb  = !fibreOk ? 'bg-card'        : c.fibre_pct >= 80 ? 'bg-emerald-500/10' : c.fibre_pct >= 40 ? 'bg-amber-500/10' : 'bg-rose-500/10';
     const fbc = !fibreOk ? 'bg-gray-700'    : c.fibre_pct >= 80 ? 'bg-emerald-400'    : c.fibre_pct >= 40 ? 'bg-amber-400'    : 'bg-rose-400';
 
+    // URLs de recherche immobilière – LeBonCoin & SeLoger (rayon 30 km)
+    const _slug = (c.nom || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const _cp   = c.cp || '';
+    const _lbcLoc = `${_slug}_${_cp}__${c.lat||''}_${c.lon||''}_30000`;
+    const lbcVente     = `https://www.leboncoin.fr/recherche?category=9&locations=${encodeURIComponent(_lbcLoc)}&owner_type=all`;
+    const lbcLocation  = `https://www.leboncoin.fr/recherche?category=10&locations=${encodeURIComponent(_lbcLoc)}&owner_type=all`;
+    const selogerVente = `https://www.seloger.com/list.htm?types=1,2&natures=1&places=[{cp:${_cp}}]&enterprise=0&radius=30`;
+    const selogerLoc   = `https://www.seloger.com/list.htm?types=1,2&natures=3&places=[{cp:${_cp}}]&enterprise=0&radius=30`;
+    const _extIcon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
+    const _immoLinks = `
+      <div class="flex flex-wrap gap-2 mt-1">
+        <a href="${lbcVente}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors text-xs font-medium">${_extIcon} Vente — LeBonCoin</a>
+        <a href="${lbcLocation}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500/15 text-orange-300 hover:bg-orange-500/25 transition-colors text-xs font-medium">${_extIcon} Location — LeBonCoin</a>
+        <a href="${selogerVente}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 text-sky-300 hover:bg-sky-500/25 transition-colors text-xs font-medium">${_extIcon} Vente — SeLoger</a>
+        <a href="${selogerLoc}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-500/15 text-sky-300 hover:bg-sky-500/25 transition-colors text-xs font-medium">${_extIcon} Location — SeLoger</a>
+      </div>`;
+
     return `
     <div class="mb-6">
       <div class="flex items-start justify-between gap-4 flex-wrap">
@@ -658,7 +675,7 @@
       <div class="bento-card ${fb} border border-border rounded-2xl p-5">
         <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Fibre FTTH</p>
         <p class="text-2xl font-bold ${fc}">${fibreOk ? c.fibre_pct + ' %' : '—'}</p>
-        <p class="text-xs text-gray-500 mt-1">${fibreOk ? 'locaux raccordables' : 'données ARCEP non disponibles'}</p>
+        <p class="text-xs text-gray-500 mt-1">${fibreOk ? 'des locaux peuvent accéder à la fibre' : 'données ARCEP non disponibles'}</p>
         ${fibreOk ? `<div class="mt-2 bg-black/20 rounded-full h-1.5"><div class="bar-fill h-1.5 rounded-full ${fbc}" style="width:${c.fibre_pct}%"></div></div>` : ''}
       </div>
       <div class="bento-card bg-card border border-border rounded-2xl p-5">
@@ -674,14 +691,12 @@
         <span class="badge bg-indigo-500/20 text-indigo-300">${c.immo?.annee_dvf || 'DVF'}</span>
       </div>
       ${c.immo ? `
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        ${c.immo.prix_m2_median ? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Prix médian m²</p><p class="text-xl font-bold text-white">${Math.round(c.immo.prix_m2_median).toLocaleString('fr')} €</p></div>` : ''}
-        ${c.immo.loyer_median   ? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Loyer médian m²</p><p class="text-xl font-bold text-white">${c.immo.loyer_median.toFixed(1)} €</p></div>` : ''}
-        ${c.immo.nb_transactions? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Transactions</p><p class="text-xl font-bold text-white">${c.immo.nb_transactions.toLocaleString('fr')}</p></div>` : ''}
+      <div class="flex flex-col gap-3">
+        ${c.immo.prix_m2_median ? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Prix médian m²</p><p class="text-2xl font-bold text-white">${Math.round(c.immo.prix_m2_median).toLocaleString('fr')} €</p></div>` : ''}
+        ${_immoLinks}
       </div>` : `
-      <p class="text-sm text-gray-500">Aucune transaction DVF enregistrée pour cette commune.<br>
-        <span class="text-xs text-gray-600">Les petites communes peuvent ne pas figurer dans la base DVF si le volume de ventes est insuffisant.</span>
-      </p>`}
+      <p class="text-sm text-gray-500 mb-3">Aucune donnée DVF pour cette commune. <span class="text-xs text-gray-600">Les petites communes peuvent ne pas figurer dans la base DVF.</span></p>
+      ${_immoLinks}`}
     </div>
 
     <div class="bento-card bg-card border border-border rounded-2xl p-5 mb-4">
