@@ -190,6 +190,47 @@
         <p class="text-sm text-gray-400">API Géo, DVF, ARCEP, Roulez-Éco.</p>
       </div>
     </section>
+
+    <!-- ══ RECHERCHE CARBURANTS ══ -->
+    <section class="mt-8 bg-card border border-border rounded-2xl p-6 fade-up">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 shrink-0">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13 5.4 5M7 13l-2 9h14l-2-9"/></svg>
+        </div>
+        <div>
+          <h2 class="text-sm font-semibold text-white">Recherche prix carburants</h2>
+          <p class="text-xs text-gray-500">Comparez les prix dans votre ville — données officielles</p>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-2">
+        <div class="relative flex-1 min-w-[180px]">
+          <input id="fuel-search-input" type="text" autocomplete="off" placeholder="Ville ou nom de station…"
+            class="search-input w-full bg-surface border border-border rounded-xl pl-4 pr-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-all" />
+        </div>
+        <div class="relative">
+          <select id="fuel-search-select"
+            class="bg-surface border border-border rounded-xl pl-3 pr-8 py-2.5 text-sm text-gray-300 outline-none appearance-none cursor-pointer h-full">
+            <option value="Tous">Tous carburants</option>
+            <option value="SP95">SP95</option>
+            <option value="SP98">SP98</option>
+            <option value="Gazole">Gazole</option>
+            <option value="E10">E10</option>
+            <option value="E85">E85</option>
+            <option value="GPLc">GPLc</option>
+          </select>
+          <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+            <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+          </span>
+        </div>
+        <button id="fuel-search-btn"
+          class="bg-amber-600 hover:bg-amber-500 text-white text-sm px-5 py-2.5 rounded-xl transition-colors font-medium whitespace-nowrap">
+          Rechercher
+        </button>
+      </div>
+
+      <div id="fuel-search-results"></div>
+    </section>
   </template>
 
   <template id="tpl-apropos">
@@ -368,6 +409,9 @@
     container.appendChild(document.getElementById('tpl-home').content.cloneNode(true));
     try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(_) {}
     initMainSearch();
+    if (typeof FuelSearch !== 'undefined') {
+      FuelSearch.init('fuel-search-input', 'fuel-search-select', 'fuel-search-btn', 'fuel-search-results');
+    }
   }
 
   // ── Omnisearch ────────────────────────────────────────────────────────────
@@ -892,7 +936,7 @@
               <tbody>
                 ${stations.map(s => `
                 <tr class="border-b border-border/40 last:border-0">
-                  <td class="py-1.5 pr-4 text-gray-300 max-w-[130px] truncate">${esc(s.ville || s.cp)}</td>
+                  <td class="py-1.5 pr-4 text-gray-300 max-w-[130px] truncate" title="${esc(s.adresse || '')}">${esc(s.nom || s.ville || s.cp)}</td>
                   ${TYPES.map(t => `<td class="py-1.5 pr-3 ${s.prix[t] ? 'text-white' : 'text-gray-600'}">${fmtFuelPrice(s.prix[t])}</td>`).join('')}
                 </tr>`).join('')}
               </tbody>
@@ -1116,5 +1160,6 @@
     route(location.pathname);
   })();
   </script>
+  <script src="/fuel.js"></script>
 </body>
 </html>
