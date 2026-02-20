@@ -554,6 +554,27 @@
         `${commune.nom} : immobilier, fibre, carburants.`,
         `${BASE_URL}/ville/${commune.code_insee}`,
       );
+
+      // Fallback DVF : si le JSON local ne contient pas les données immo,
+      // tenter un appel direct à l'API CEREMA (open data, CORS autorisé)
+      if (!commune.immo && commune.code_insee) {
+        try {
+          const annee = new Date().getFullYear() - 1;
+          const dvf = await fetchJSON(
+            `https://apidf-preprod.cerema.fr/indicateurs/dv3f/communes?code_commune=${commune.code_insee}&annee=${annee}`
+          );
+          const r = dvf?.results?.[0];
+          if (r?.prix_m2_median) {
+            commune.immo = {
+              prix_m2_median:  r.prix_m2_median,
+              loyer_median:    r.loyer_median    ?? null,
+              nb_transactions: r.nb_ventes       ?? null,
+              annee_dvf:       annee,
+            };
+          }
+        } catch (_) { /* silencieux */ }
+      }
+
       col1.innerHTML = buildVilleHTML(commune);
       col1.classList.add('fade-up');
       try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(_) {}
@@ -919,6 +940,14 @@
     return price.toFixed(3) + ' €';
   }
 
+  // Distance orthodromique en kilomètres (formule de Haversine)
+  function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371, d2r = Math.PI / 180;
+    const dLat = (lat2 - lat1) * d2r, dLon = (lon2 - lon1) * d2r;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*d2r) * Math.cos(lat2*d2r) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
   async function loadFuelIntoEl(elId, commune) {
     const el = document.getElementById(elId);
     if (!el) return;
@@ -926,61 +955,101 @@
       const data = await fetchJSON(`${DATA_BASE}/carburants.json`);
       if (!data?.stations?.length) throw new Error('vide');
 
-      // Filtre : CP exact d'abord, fallback département si aucune station trouvée
-      const cp  = String(commune.cp || '');
-      const dep = String(commune.code_dep || '').padStart(2, '0');
+      const RADIUS_KM = 10;
+      const cLat = commune.lat, cLon = commune.lon;
+      const hasGeo = cLat != null && cLon != null;
 
-      let stations = data.stations.filter(s => String(s.cp) === cp);
-      const isNearby = !stations.length;
-      if (isNearby && dep) {
-        stations = data.stations.filter(s => String(s.cp || '').startsWith(dep));
+      let stations;
+      if (hasGeo) {
+        // Filtre géographique : rayon 10 km, trié par distance croissante
+        stations = data.stations
+          .map(s => ({ ...s, _dist: (s.lat != null && s.lon != null) ? haversine(cLat, cLon, s.lat, s.lon) : Infinity }))
+          .filter(s => s._dist <= RADIUS_KM)
+          .sort((a, b) => a._dist - b._dist);
+      } else {
+        // Fallback CP/département si pas de coordonnées sur la commune
+        const cp  = String(commune.cp || '');
+        const dep = String(commune.code_dep || '').padStart(2, '0');
+        let matched = data.stations.filter(s => String(s.cp) === cp);
+        if (!matched.length && dep) matched = data.stations.filter(s => String(s.cp || '').startsWith(dep));
+        stations = matched.map(s => ({ ...s, _dist: null }));
       }
-      stations = stations.slice(0, 6);
 
       if (!stations.length) {
-        el.innerHTML = `<p class="text-xs text-gray-500">Aucune station dans ce secteur.</p>`;
+        el.innerHTML = `<p class="text-xs text-gray-500">Aucune station dans un rayon de ${RADIUS_KM} km.</p>`;
         return;
       }
 
+      const totalCount = stations.length;
+
       if (elId === 'fuel-main') {
         const TYPES = ['SP95', 'SP98', 'Gazole', 'E10', 'E85', 'GPLc'];
-        const ts = new Date(data.updated_at).toLocaleString('fr');
-        // Met à jour le titre de la section selon qu'on affiche la ville exacte ou le département
+        const ts  = new Date(data.updated_at).toLocaleString('fr');
+        const MAX = 25;
+        const shown = stations.slice(0, MAX);
+
         const titleEl = el.closest('.bento-card')?.querySelector('h2');
-        if (titleEl) titleEl.textContent = isNearby ? 'Carburants à proximité (département)' : 'Carburants dans la ville';
+        if (titleEl) titleEl.textContent = hasGeo
+          ? `Stations dans un rayon de ${RADIUS_KM} km`
+          : 'Carburants dans la ville';
+
         el.innerHTML = `
-          <p class="text-xs text-gray-500 mb-3">Mis à jour : ${ts}</p>
+          <p class="text-xs text-gray-500 mb-3">
+            Màj : ${ts} ·
+            <strong class="text-gray-400">${totalCount}</strong> station${totalCount > 1 ? 's' : ''}
+            ${totalCount > MAX ? ` · <em>${MAX} affichées</em>` : ''}
+            ${hasGeo ? ' · par distance' : ''}
+          </p>
           <div class="overflow-x-auto -mx-1">
             <table class="w-full text-xs min-w-max">
               <thead>
                 <tr class="text-gray-500 text-left border-b border-border">
                   <th class="pb-2 pr-4 font-medium">Station</th>
+                  ${hasGeo ? '<th class="pb-2 pr-3 font-medium text-right">Dist.</th>' : ''}
                   ${TYPES.map(t => `<th class="pb-2 pr-3 font-medium">${t}</th>`).join('')}
                 </tr>
               </thead>
               <tbody>
-                ${stations.map(s => {
-                  const stationName = s.nom || s.adresse || '—';
-                  const stationCity = s.ville || s.cp;
-                  const showCity = stationName !== stationCity;
+                ${shown.map(s => {
+                  const name = s.nom || s.adresse || '—';
+                  const city = s.ville || s.cp;
+                  const showCity = name !== city;
+                  const mapsUrl = (s.lat != null && s.lon != null)
+                    ? `https://maps.google.com/maps?q=${s.lat},${s.lon}`
+                    : `https://maps.google.com/maps?q=${encodeURIComponent((s.adresse ? s.adresse + ', ' : '') + city)}`;
+                  const d = s._dist;
+                  const distStr = (d != null && d !== Infinity)
+                    ? (d < 1 ? Math.round(d * 1000) + ' m' : d.toFixed(1) + ' km')
+                    : '—';
                   return `
-                <tr class="border-b border-border/40 last:border-0">
-                  <td class="py-1.5 pr-4 max-w-[160px]" title="${esc([s.nom, s.adresse, s.ville].filter(Boolean).join(' – '))}">
-                    <p class="text-gray-300 truncate">${esc(stationName)}</p>
-                    ${showCity ? `<p class="text-gray-600 truncate" style="font-size:0.65rem">${esc(stationCity)}</p>` : ''}
-                  </td>
-                  ${TYPES.map(t => `<td class="py-1.5 pr-3 ${s.prix[t] ? 'text-white' : 'text-gray-600'}">${fmtFuelPrice(s.prix[t])}</td>`).join('')}
-                </tr>`;}).join('')}
+                  <tr class="border-b border-border/40 last:border-0">
+                    <td class="py-2 pr-4 max-w-[180px]">
+                      <div class="flex items-center gap-1">
+                        <div class="min-w-0">
+                          <p class="text-gray-300 truncate leading-snug">${esc(name)}</p>
+                          ${showCity ? `<p class="text-gray-600 truncate leading-none mt-0.5" style="font-size:0.65rem">${esc(city)}</p>` : ''}
+                        </div>
+                        <a href="${esc(mapsUrl)}" target="_blank" rel="noopener"
+                           class="shrink-0 ml-1 text-gray-600 hover:text-indigo-400 transition-colors" title="Google Maps">
+                          <svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+                        </a>
+                      </div>
+                    </td>
+                    ${hasGeo ? `<td class="py-2 pr-3 text-gray-500 text-right whitespace-nowrap">${distStr}</td>` : ''}
+                    ${TYPES.map(t => `<td class="py-2 pr-3 tabular-nums ${s.prix[t] ? 'text-white' : 'text-gray-600'}">${fmtFuelPrice(s.prix[t])}</td>`).join('')}
+                  </tr>`;
+                }).join('')}
               </tbody>
             </table>
           </div>`;
         return;
       }
 
-      // Vue compacte
+      // Vue compacte (mode comparaison)
       const COMPACT = ['SP95', 'Gazole', 'E10'];
+      const nearest = stations.slice(0, 6);
       const rows = COMPACT.map(t => {
-        const prices = stations.map(s => s.prix[t]).filter(v => v != null && v > 0);
+        const prices = nearest.map(s => s.prix[t]).filter(v => v != null && v > 0);
         if (!prices.length) return '';
         const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
         return `<span class="inline-flex items-center gap-1 text-xs"><span class="text-gray-500">${t}</span><strong class="text-white">${fmtFuelPrice(avg)}</strong></span>`;
