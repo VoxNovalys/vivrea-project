@@ -620,13 +620,12 @@
     // URLs de recherche immobilière – LeBonCoin & SeLoger (rayon 30 km)
     const _slug = (c.nom || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
     const _cp   = c.cp || '';
-    // LeBonCoin : format City__Lat_Lon_Radius(m) – cat.9=vente, cat.8=location
-    const _lbcLoc = `${_slug}__${c.lat||''}_${c.lon||''}_30000`;
-    const lbcVente     = `https://www.leboncoin.fr/recherche?category=9&locations=${encodeURIComponent(_lbcLoc)}&owner_type=all`;
-    const lbcLocation  = `https://www.leboncoin.fr/recherche?category=8&locations=${encodeURIComponent(_lbcLoc)}&owner_type=all`;
-    // SeLoger : format chemin /immobilier/{type}/immo-{ville}-{cp}/ (places=[{cp:X}] non supporté)
-    const selogerVente = `https://www.seloger.com/immobilier/achat/immo-${_slug}-${_cp}/`;
-    const selogerLoc   = `https://www.seloger.com/immobilier/location/immo-${_slug}-${_cp}/`;
+    // LeBonCoin : slug seul → ciblage ville exacte (0km, l'utilisateur ajuste si besoin) – cat.9=vente, cat.8=location
+    const lbcVente     = `https://www.leboncoin.fr/recherche?category=9&locations=${encodeURIComponent(_slug)}&owner_type=all`;
+    const lbcLocation  = `https://www.leboncoin.fr/recherche?category=8&locations=${encodeURIComponent(_slug)}&owner_type=all`;
+    // SeLoger : /achat/ et /locations/ (pluriel) + code département (pas CP)
+    const selogerVente = `https://www.seloger.com/immobilier/achat/immo-${_slug}-${c.code_dep}/`;
+    const selogerLoc   = `https://www.seloger.com/immobilier/locations/immo-${_slug}-${c.code_dep}/`;
     const _extIcon = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15,3 21,3 21,9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>`;
     const _immoLinks = `
       <div class="flex flex-wrap gap-2 mt-1">
