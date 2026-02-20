@@ -24,13 +24,11 @@ const FuelSearch = (() => {
   }
 
   // ── Normalisation : stations[]{prix:{SP95:1.73,…}} → tableau plat ───────
-  // Format carburants.json :
-  //   { stations: [{ nom, cp, ville, adresse, lat, lon, prix:{…}, maj:{…} }] }
   function normalize(data) {
     const out = [];
     for (const s of (data.stations || [])) {
       for (const [type, prix] of Object.entries(s.prix || {})) {
-        if (!prix) continue;            // ignorer 0 et manquant
+        if (!prix) continue;
         out.push({
           nom:       s.nom      || '',
           cp:        s.cp       || '',
@@ -48,7 +46,6 @@ const FuelSearch = (() => {
   }
 
   // ── Recherche / filtres / tri ────────────────────────────────────────────
-  // Normalise une chaîne : minuscules + suppression accents
   function norm(s) {
     return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   }
@@ -56,12 +53,14 @@ const FuelSearch = (() => {
   function search(q, carburant) {
     if (!_flat) return [];
     const term = norm(q.trim());
+
     return _flat
       .filter(r => {
         if (carburant && carburant !== 'Tous' && r.carburant !== carburant) return false;
         if (!term) return true;
-        // On ne recherche que dans la ville
-        return norm(r.ville).includes(term);
+
+        // On filtre uniquement sur la ville exacte ou le nom de la station
+        return norm(r.ville) === term || norm(r.nom).includes(term);
       })
       .sort((a, b) => a.prix - b.prix)
       .slice(0, 20);
@@ -146,7 +145,7 @@ const FuelSearch = (() => {
       results.innerHTML = `<div class="skeleton h-14 rounded-xl mt-3"></div>`;
 
       try {
-        await load();                        // premier appel : charge et cache
+        await load();
         const found = search(q, carb);
         render(results, found, q);
       } catch {
