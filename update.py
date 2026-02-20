@@ -315,11 +315,9 @@ def fetch_fuel_prices() -> None:
                 valeur = price_el.get("valeur")
                 if nom and valeur:
                     try:
-                        raw = float(valeur)
-                        # Auto-détection du format source :
-                        # • entier millièmes : 1859 → /1000 → 1.859 €
-                        # • déjà en euros  : 1.859 → conserver tel quel
-                        prix[nom] = round(raw / 1000 if raw > 10 else raw, 4)
+                        # L'API roulez-eco.fr retourne des euros décimaux
+                        # directement (ex: valeur="1.859"). Pas de conversion.
+                        prix[nom] = round(float(valeur), 4)
                     except ValueError:
                         pass
 

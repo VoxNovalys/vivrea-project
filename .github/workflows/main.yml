@@ -1,21 +1,13 @@
 name: VivreÀ – Mise à jour des données
 
 on:
-  # Déclenchement manuel depuis l'UI GitHub
   workflow_dispatch:
-
-  # Mise à jour hebdomadaire (chaque lundi à 03h00 UTC)
   schedule:
     - cron: '0 3 * * 1'
 
-# ── Permissions ────────────────────────────────────────────────────────────────
-# 'contents: write' est REQUIS pour que le bot puisse committer
-# les fichiers JSON générés (data/) sur la branche main.
-# Vercel détecte le push et redéploie automatiquement.
 permissions:
   contents: write
 
-# Empêche les exécutions concurrentes (évite les conflits de commit)
 concurrency:
   group: vivrea-update
   cancel-in-progress: false
@@ -29,14 +21,11 @@ jobs:
     steps:
       - name: Checkout du dépôt
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Configuration de Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
 
       - name: Installation des dépendances Python
         run: pip install --upgrade pip requests
@@ -46,7 +35,7 @@ jobs:
         env:
           PYTHONUNBUFFERED: '1'
 
-      - name: Vérification de la taille de l'index
+      - name: Vérification de data/index.json
         run: |
           if [ ! -f data/index.json ]; then
             echo "::error::data/index.json absent – le script a échoué."
@@ -75,7 +64,7 @@ jobs:
           cat data/meta.json >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Commit et push des données (→ déclenche redéploiement Vercel)
+      - name: Commit et push des données
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -85,6 +74,6 @@ jobs:
           else
             TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
             git commit -m "chore(data): mise à jour automatique – ${TIMESTAMP} [skip ci]"
-            git push
+            git push origin HEAD
             echo "::notice::Données poussées – Vercel va redéployer automatiquement."
           fi
