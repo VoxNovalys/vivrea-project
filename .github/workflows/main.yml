@@ -19,61 +19,38 @@ jobs:
     timeout-minutes: 45
 
     steps:
-      - name: Checkout du dépôt
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configuration de Python 3.12
+      - name: Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Installation des dépendances Python
+      - name: Dépendances
         run: pip install --upgrade pip requests
 
-      - name: Exécution de update.py
+      - name: Exécution update.py
         run: python update.py
         env:
           PYTHONUNBUFFERED: '1'
 
-      - name: Vérification de data/index.json
+      - name: Vérification index
         run: |
           if [ ! -f data/index.json ]; then
-            echo "::error::data/index.json absent – le script a échoué."
+            echo "::error::data/index.json absent"
             exit 1
           fi
-          INDEX_KB=$(du -k data/index.json | cut -f1)
-          echo "Index : ${INDEX_KB} Ko"
-          if [ "$INDEX_KB" -gt 1536 ]; then
-            echo "::warning::Index > 1.5 Mo (${INDEX_KB} Ko)"
-          else
-            echo "::notice::Index OK – ${INDEX_KB} Ko"
-          fi
+          echo "Index : $(du -h data/index.json | cut -f1)"
 
-      - name: Résumé du build
-        run: |
-          echo "### VivreÀ – Résumé mise à jour" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Fichier | Taille |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| \`data/index.json\` | $(du -h data/index.json | cut -f1) |" >> $GITHUB_STEP_SUMMARY
-          echo "| \`data/carburants.json\` | $(du -h data/carburants.json 2>/dev/null | cut -f1 || echo 'N/A') |" >> $GITHUB_STEP_SUMMARY
-          DEP_COUNT=$(ls data/details/*.json 2>/dev/null | wc -l)
-          echo "| Détails départements | ${DEP_COUNT} fichiers |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```json' >> $GITHUB_STEP_SUMMARY
-          cat data/meta.json >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-      - name: Commit et push des données
+      - name: Commit et push
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/
           if git diff --cached --quiet; then
-            echo "Aucun changement – rien à committer."
+            echo "Aucun changement."
           else
-            TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
-            git commit -m "chore(data): mise à jour automatique – ${TIMESTAMP} [skip ci]"
+            git commit -m "chore(data): mise à jour automatique – $(date -u '+%Y-%m-%d %H:%M UTC') [skip ci]"
             git push origin HEAD
-            echo "::notice::Données poussées – Vercel va redéployer automatiquement."
           fi

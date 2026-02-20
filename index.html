@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>VivreÀ – Découvrez votre prochaine commune</title>
   <meta name="description" content="Base de données exhaustive des 35 000 communes françaises. Prix immobilier, couverture fibre, carburants et bien plus." />
-  <meta name="keywords" content="communes françaises, immobilier, fibre optique, carburant, code postal, code INSEE, comparaison villes" />
   <meta property="og:title" content="VivreÀ – Toutes les communes françaises" />
   <meta property="og:description" content="Explorez les 35 000 communes de France : immobilier, fibre, carburants." />
   <meta property="og:type" content="website" />
@@ -41,7 +40,6 @@
     .fade-up { animation: fadeUp .35s ease forwards; }
 
     .search-input:focus { box-shadow: 0 0 0 2px #6366f1, 0 0 24px rgba(99,102,241,.18); }
-
     .bento-card { transition: transform .2s ease, box-shadow .2s ease; }
     .bento-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(99,102,241,.12); }
 
@@ -55,22 +53,16 @@
       animation: shimmer 1.4s infinite;
       border-radius: 6px;
     }
-
     .suggestion-item:hover, .suggestion-item.active { background: rgba(99,102,241,.15); }
-
-    .badge {
-      font-size: .65rem; padding: 2px 8px; border-radius: 999px;
-      font-weight: 600; letter-spacing: .03em;
-    }
-
+    .badge { font-size:.65rem; padding:2px 8px; border-radius:999px; font-weight:600; letter-spacing:.03em; }
     .bar-fill { transition: width .7s cubic-bezier(.16,1,.3,1); }
+    .amzn-card { background: linear-gradient(135deg,rgba(255,153,0,.06),rgba(99,102,241,.06)); border:1px solid rgba(255,153,0,.2); }
 
-    /* Compare split */
-    .compare-col-a { border-right: 1px solid #2a2a2a; }
-    @media (max-width: 1023px) { .compare-col-a { border-right: none; border-bottom: 1px solid #2a2a2a; padding-bottom: 1.5rem; margin-bottom: 1.5rem; } }
-
-    /* Amazon */
-    .amzn-card { background: linear-gradient(135deg, rgba(255,153,0,.06), rgba(99,102,241,.06)); border: 1px solid rgba(255,153,0,.2); }
+    /* Séparateur colonne comparaison */
+    #city-details-1.in-compare { border-right: 1px solid #2a2a2a; padding-right: 1.5rem; }
+    @media (max-width: 1023px) {
+      #city-details-1.in-compare { border-right: none; border-bottom: 1px solid #2a2a2a; padding-right: 0; padding-bottom: 1.5rem; margin-bottom: 1.5rem; }
+    }
   </style>
 </head>
 
@@ -84,9 +76,9 @@
         <span class="font-semibold text-white text-sm">Vivre<span class="text-indigo-400">À</span></span>
       </a>
       <nav class="hidden sm:flex items-center gap-6 text-xs text-gray-400">
-        <a href="/"            onclick="navigate('/',event)"       class="hover:text-indigo-400 transition-colors">Accueil</a>
+        <a href="/"           onclick="navigate('/',event)"        class="hover:text-indigo-400 transition-colors">Accueil</a>
         <a href="/explorer.html"                                    class="hover:text-indigo-400 transition-colors">Explorer</a>
-        <a href="/a-propos"    onclick="navigate('/a-propos',event)" class="hover:text-indigo-400 transition-colors">À propos</a>
+        <a href="/a-propos"   onclick="navigate('/a-propos',event)" class="hover:text-indigo-400 transition-colors">À propos</a>
       </nav>
       <div id="worker-status" class="hidden sm:flex items-center gap-1.5 text-xs text-gray-600">
         <span class="w-1.5 h-1.5 rounded-full bg-gray-600 animate-pulse"></span>Chargement…
@@ -104,10 +96,8 @@
   </footer>
 
   <!-- ══ TEMPLATES ══ -->
-
-  <!-- Accueil -->
   <template id="tpl-home">
-    <section class="text-center py-14 fade-up" id="tendances">
+    <section class="text-center py-14 fade-up">
       <div class="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-4 py-1 text-xs text-indigo-400 mb-6">
         <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
         35 000 communes · Données mises à jour chaque semaine
@@ -118,7 +108,6 @@
       </h1>
       <p class="text-gray-400 text-base max-w-2xl mx-auto mb-10">Immobilier, fibre optique, carburants, démographie — toutes les données pour bien choisir où <em>vivre</em>.</p>
 
-      <!-- OMNISEARCH -->
       <div class="relative max-w-2xl mx-auto" id="search-container">
         <div class="relative">
           <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
@@ -146,7 +135,6 @@
            data-ad-client="ca-pub-2156803616781959" data-ad-slot="auto" data-ad-format="horizontal" data-full-width-responsive="true"></ins>
     </div>
 
-    <!-- Bento 4 cols XL -->
     <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
       <div class="bento-card lg:col-span-2 bg-card border border-border rounded-2xl p-6 flex gap-4">
         <div class="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-400 shrink-0 mt-1">
@@ -155,7 +143,7 @@
         <div>
           <span class="badge bg-indigo-500/20 text-indigo-300 mb-2 inline-block">IMMOBILIER</span>
           <h2 class="text-base font-semibold text-white mb-1">Prix m² réels (DVF)</h2>
-          <p class="text-sm text-gray-400 leading-relaxed">Demandes de Valeurs Foncières agrégées par commune — transactions réelles, pas des estimations.</p>
+          <p class="text-sm text-gray-400 leading-relaxed">Demandes de Valeurs Foncières agrégées — transactions réelles, pas des estimations.</p>
         </div>
       </div>
       <div class="bento-card bg-card border border-border rounded-2xl p-6">
@@ -164,7 +152,7 @@
         </div>
         <span class="badge bg-emerald-500/20 text-emerald-300 mb-2 inline-block">FIBRE FTTH</span>
         <h2 class="text-base font-semibold text-white mb-1">Couverture ARCEP</h2>
-        <p class="text-sm text-gray-400">Taux de locaux raccordables à la fibre, source officielle ARCEP.</p>
+        <p class="text-sm text-gray-400">Taux de locaux raccordables, source officielle.</p>
       </div>
       <div class="bento-card bg-card border border-border rounded-2xl p-6">
         <div class="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center text-amber-400 mb-3">
@@ -172,7 +160,7 @@
         </div>
         <span class="badge bg-amber-500/20 text-amber-300 mb-2 inline-block">CARBURANT</span>
         <h2 class="text-base font-semibold text-white mb-1">Prix instantanés</h2>
-        <p class="text-sm text-gray-400">Flux temps réel des prix à la pompe autour de chaque commune.</p>
+        <p class="text-sm text-gray-400">Flux temps réel des prix à la pompe.</p>
       </div>
       <div class="bento-card bg-card border border-border rounded-2xl p-6">
         <div class="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center text-purple-400 mb-3">
@@ -180,7 +168,7 @@
         </div>
         <span class="badge bg-purple-500/20 text-purple-300 mb-2 inline-block">DÉMOGRAPHIE</span>
         <h2 class="text-base font-semibold text-white mb-1">Population INSEE</h2>
-        <p class="text-sm text-gray-400">Surface, densité, code département pour les 35 000 communes.</p>
+        <p class="text-sm text-gray-400">Surface, densité, département.</p>
       </div>
       <div class="bento-card lg:col-span-2 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 rounded-2xl p-6 flex gap-4">
         <div class="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center text-indigo-400 shrink-0 mt-1">
@@ -189,8 +177,8 @@
         <div>
           <span class="badge bg-indigo-500/20 text-indigo-300 mb-2 inline-block">COMPARAISON</span>
           <h2 class="text-base font-semibold text-white mb-1">Mode Comparaison côte à côte</h2>
-          <p class="text-sm text-gray-400 mb-3">Recherchez une commune ci-dessus, ouvrez sa fiche, puis cliquez <strong class="text-indigo-300">Comparer</strong> — l'écran se divise en deux colonnes pour comparer immobilier, fibre et carburants.</p>
-          <button onclick="document.getElementById('search-input').focus()" class="inline-block text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg transition-colors font-medium">Rechercher une commune →</button>
+          <p class="text-sm text-gray-400 mb-3">Ouvrez une fiche commune, cliquez <strong class="text-indigo-300">Comparer</strong> — une deuxième colonne apparaît à droite pour choisir une autre ville.</p>
+          <a href="/explorer.html" class="inline-block text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg transition-colors font-medium">Explorer toutes les communes →</a>
         </div>
       </div>
       <div class="bento-card bg-card border border-border rounded-2xl p-6">
@@ -199,15 +187,11 @@
         </div>
         <span class="badge bg-rose-500/20 text-rose-300 mb-2 inline-block">OPEN DATA</span>
         <h2 class="text-base font-semibold text-white mb-1">100 % sources ouvertes</h2>
-        <p class="text-sm text-gray-400">API Géo, DVF, ARCEP, Roulez-Éco — toutes certifiées.</p>
+        <p class="text-sm text-gray-400">API Géo, DVF, ARCEP, Roulez-Éco.</p>
       </div>
     </section>
   </template>
 
-  <!-- Fiche ville -->
-  <template id="tpl-ville"><div id="ville-content" class="fade-up"></div></template>
-
-  <!-- À propos -->
   <template id="tpl-apropos">
     <section class="max-w-3xl mx-auto fade-up">
       <h1 class="text-3xl font-bold text-white mb-4">À propos de VivreÀ</h1>
@@ -222,12 +206,11 @@
     </section>
   </template>
 
-  <!-- Mentions légales -->
   <template id="tpl-mentions">
     <section class="max-w-3xl mx-auto fade-up">
       <h1 class="text-3xl font-bold text-white mb-4">Mentions légales</h1>
       <p class="text-gray-400 leading-relaxed mb-4">Site édité par Vox Novalys. Cookies publicitaires via Google AdSense (pub-2156803616781959).</p>
-      <p class="text-gray-400 leading-relaxed">Partenaire Amazon — tag d'affiliation : <strong class="text-gray-200">vivrea-21</strong>.</p>
+      <p class="text-gray-400 leading-relaxed">Partenaire Amazon — tag : <strong class="text-gray-200">vivrea-21</strong>.</p>
     </section>
   </template>
 
@@ -236,35 +219,54 @@
   'use strict';
 
   const BASE_URL  = 'https://vivrea.vox-novalys.fr';
-  const DATA_BASE = '/data';           // absolu → fiable sur Vercel et GitHub Pages
+  const DATA_BASE = '/data';
   const AMZN_TAG  = 'vivrea-21';
 
-  // ── État ─────────────────────────────────────────────────────────────────
+  // ── État global ───────────────────────────────────────────────────────────
   const state = {
     workerReady:    false,
-    pendingSearch:  null,
-    currentCommune: null,   // commune chargée sur la fiche courante
+    currentCommune: null,   // commune actuellement affichée
   };
-  const depCache = {};
+  const depCache = {};      // cache des fichiers details/{dep}.json
 
-  // ── Web Worker ────────────────────────────────────────────────────────────
+  // Mode comparaison : true quand le bouton "Comparer" a été cliqué
+  let isComparisonMode = false;
+
+  // ── Web Worker (recherche hors-thread) ────────────────────────────────────
   let worker = null;
-  const workerCbs = {};   // canal → resolve()
+  const workerCbs = {};   // { channelId → resolveFn }
 
+  // Code inline du worker (fallback si search.worker.js non accessible)
   const WORKER_SRC = `
     'use strict';
     let idx=[],norm=[];
-    const norm_=s=>s.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim();
+    const norm_=s=>String(s).toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').trim();
     function score(n,q){if(n===q)return 100;if(n.startsWith(q))return 80;if(n.split(/[-\\s]+/).some(w=>w.startsWith(q)))return 60;if(n.includes(q))return 40;return 0;}
     self.onmessage=({data:{type,payload}})=>{
-      if(type==='INIT'){idx=payload;norm=idx.map(c=>norm_(c[0]));self.postMessage({type:'READY',payload:{size:idx.length}});return;}
+      if(type==='INIT'){
+        idx=payload;
+        norm=idx.map(c=>norm_(c[0]));
+        self.postMessage({type:'READY',payload:{size:idx.length}});
+        return;
+      }
       if(type==='SEARCH'){
-        const{query,limit=8,ch='S'}=payload;const q=norm_(query);
+        const{query,limit=8,ch='S'}=payload;
+        const q=norm_(query);
         if(!q){self.postMessage({type:'RESULTS',payload:{results:[],ch}});return;}
         const res=[];
         for(let i=0;i<norm.length;i++){
-          const n=norm[i],s=score(n,q),cp=(idx[i][2]||'');
-          if(s>0||(cp.startsWith(q)&&q.length>=2))res.push({nom:idx[i][0],code_insee:idx[i][1],cp:idx[i][2],pop:idx[i][3],_s:s||(cp.startsWith(q)?20:0)});
+          const n=norm[i];
+          const cp=String(idx[i][2]||'');
+          const s=score(n,q);
+          if(s>0||(cp.startsWith(q)&&q.length>=2)){
+            res.push({
+              nom:        String(idx[i][0]),
+              code_insee: String(idx[i][1]),  // TOUJOURS String
+              cp:         String(idx[i][2]||''),
+              pop:        idx[i][3]||0,
+              _s: s||(cp.startsWith(q)?20:0)
+            });
+          }
         }
         res.sort((a,b)=>b._s-a._s||b.pop-a.pop);
         self.postMessage({type:'RESULTS',payload:{results:res.slice(0,limit).map(({_s,...r})=>r),ch}});
@@ -274,29 +276,35 @@
 
   function initWorker() {
     try { worker = new Worker('./search.worker.js'); }
-    catch (_) { worker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'application/javascript' }))); }
-
+    catch (_) {
+      worker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'application/javascript' })));
+    }
     worker.onmessage = ({ data: { type, payload } }) => {
       if (type === 'READY') {
         state.workerReady = true;
         const el = document.getElementById('worker-status');
-        if (el) { el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> ${payload.size.toLocaleString('fr')} communes`; el.classList.remove('hidden'); }
-        const s = document.getElementById('stat-communes');
-        if (s) s.textContent = payload.size.toLocaleString('fr');
-        if (state.pendingSearch) { state.pendingSearch = null; }
+        if (el) {
+          el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span> ${payload.size.toLocaleString('fr')} communes`;
+          el.classList.remove('hidden');
+        }
+        const sc = document.getElementById('stat-communes');
+        if (sc) sc.textContent = payload.size.toLocaleString('fr');
       }
       if (type === 'RESULTS') {
         const cb = workerCbs[payload.ch];
-        if (cb) { cb(payload.results); delete workerCbs[payload.ch]; }
+        if (cb) { delete workerCbs[payload.ch]; cb(payload.results); }
       }
     };
     worker.onerror = e => console.error('[Worker]', e);
   }
 
-  function wSearch(query, limit = 8, ch = 'S') {
+  // Identifiant unique par requête → évite les collisions de channel
+  let _seq = 0;
+  function wSearch(query, limit, prefix) {
+    const ch = (prefix || 'S') + '_' + (++_seq);
     return new Promise(resolve => {
       workerCbs[ch] = resolve;
-      worker.postMessage({ type: 'SEARCH', payload: { query, limit, ch } });
+      worker.postMessage({ type: 'SEARCH', payload: { query, limit: limit || 8, ch } });
     });
   }
 
@@ -306,7 +314,7 @@
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       worker.postMessage({ type: 'INIT', payload: await r.json() });
     } catch (e) {
-      console.warn('[VivreÀ] Index indisponible :', e.message);
+      console.warn('[VivreÀ] Index non disponible :', e.message);
       const el = document.getElementById('worker-status');
       if (el) el.textContent = 'Index indisponible';
     }
@@ -330,6 +338,7 @@
   }
 
   function route(path) {
+    isComparisonMode = false;
     const app = document.getElementById('app');
     app.innerHTML = '';
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -353,41 +362,62 @@
   }
 
   // ── Omnisearch ────────────────────────────────────────────────────────────
-  let mainDebounce = null;
-  let ddSelectedIdx = -1;
+  let _mainDebounce = null;
+  let _ddIdx = -1;
 
   function initMainSearch() {
-    const input = document.getElementById('search-input');
-    if (!input) return;
+    const input    = document.getElementById('search-input');
     const dropdown = document.getElementById('search-dropdown');
     const loader   = document.getElementById('search-loader');
+    if (!input) return;
 
     input.addEventListener('input', () => {
       const q = input.value.trim();
-      clearTimeout(mainDebounce);
-      if (!q) { hideDD(dropdown); return; }
-      loader?.classList.remove('hidden');
-      mainDebounce = setTimeout(async () => {
-        if (!state.workerReady) return;
-        const results = await wSearch(q, 8, 'MAIN');
+      clearTimeout(_mainDebounce);
+
+      if (!q) {
         loader?.classList.add('hidden');
-        renderDD(dropdown, results, input, r => navigate(`/ville/${r.code_insee}`));
+        hideDD(dropdown);
+        return;
+      }
+
+      loader?.classList.remove('hidden');
+
+      _mainDebounce = setTimeout(async () => {
+        if (!state.workerReady) {
+          console.log('[VivreÀ] Worker pas prêt pour :', q);
+          loader?.classList.add('hidden');
+          return;
+        }
+        try {
+          console.log('[VivreÀ] Recherche :', q);
+          const results = await wSearch(q, 8, 'MAIN');
+          console.log('[VivreÀ] →', results.length, 'résultats, premier code_insee =', results[0]?.code_insee, '(type:', typeof results[0]?.code_insee, ')');
+          renderDD(dropdown, results, input, r => navigate('/ville/' + r.code_insee));
+        } catch (e) {
+          console.error('[VivreÀ] Erreur recherche :', e);
+        } finally {
+          loader?.classList.add('hidden');
+        }
       }, 120);
     });
 
     input.addEventListener('keydown', e => {
       const items = dropdown.querySelectorAll('.suggestion-item');
-      if (e.key === 'ArrowDown') { e.preventDefault(); ddSelectedIdx = Math.min(ddSelectedIdx + 1, items.length - 1); markActive(items); }
-      if (e.key === 'ArrowUp')   { e.preventDefault(); ddSelectedIdx = Math.max(ddSelectedIdx - 1, 0); markActive(items); }
-      if (e.key === 'Enter')     { (ddSelectedIdx >= 0 ? items[ddSelectedIdx] : items[0])?.click(); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); _ddIdx = Math.min(_ddIdx + 1, items.length - 1); markActive(items); }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); _ddIdx = Math.max(_ddIdx - 1, 0); markActive(items); }
+      if (e.key === 'Enter')     { (_ddIdx >= 0 ? items[_ddIdx] : items[0])?.click(); }
       if (e.key === 'Escape')    hideDD(dropdown);
     });
-    document.addEventListener('click', e => { if (!e.target.closest('#search-container')) hideDD(dropdown); });
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#search-container')) hideDD(dropdown);
+    });
   }
 
   function renderDD(dropdown, results, input, onSelect) {
     dropdown.innerHTML = '';
-    ddSelectedIdx = -1;
+    _ddIdx = -1;
     if (!results.length) {
       dropdown.innerHTML = `<li class="px-4 py-3 text-sm text-gray-500">Aucun résultat pour « <em>${esc(input.value)}</em> »</li>`;
       dropdown.classList.remove('hidden');
@@ -415,42 +445,58 @@
   }
 
   function markActive(items) {
-    items.forEach((el, i) => el.classList.toggle('active', i === ddSelectedIdx));
-    items[ddSelectedIdx]?.scrollIntoView({ block: 'nearest' });
+    items.forEach((el, i) => el.classList.toggle('active', i === _ddIdx));
+    items[_ddIdx]?.scrollIntoView({ block: 'nearest' });
   }
-  function hideDD(el) { if (el) { el.classList.add('hidden'); el.innerHTML = ''; } ddSelectedIdx = -1; }
+  function hideDD(el) { if (el) { el.classList.add('hidden'); el.innerHTML = ''; } _ddIdx = -1; }
 
   // ── Fiche Ville ───────────────────────────────────────────────────────────
   async function renderVille(container, slug) {
-    const wrap = document.createElement('div');
-    wrap.id = 'ville-content'; wrap.className = 'fade-up';
-    container.appendChild(wrap);
-    wrap.innerHTML = `<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">${Array(8).fill('<div class="skeleton h-24 rounded-2xl"></div>').join('')}</div>`;
+    // Structure fixe : deux colonnes, city-details-2 cachée tant que compare inactif
+    container.innerHTML = `
+      <div id="compare-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div id="city-details-1" class="min-w-0">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            ${Array(8).fill('<div class="skeleton h-24 rounded-2xl"></div>').join('')}
+          </div>
+        </div>
+        <div id="city-details-2" class="min-w-0 hidden"></div>
+      </div>`;
+
+    const col1 = document.getElementById('city-details-1');
 
     try {
-      const commune = /^\d{5}$/.test(slug) ? await fetchByInsee(slug) : await fetchBySlug(slug);
-      if (!commune) { wrap.innerHTML = `<p class="text-center text-gray-500 py-12">Commune introuvable : <strong>${esc(slug)}</strong></p>`; return; }
+      const commune = /^\d{5}$/.test(slug)
+        ? await fetchByInsee(slug)
+        : await fetchBySlug(slug);
+
+      if (!commune) {
+        col1.innerHTML = `<p class="text-center text-gray-500 py-12">Commune introuvable : <strong>${esc(slug)}</strong></p>`;
+        return;
+      }
 
       state.currentCommune = commune;
       setSEO(
         `${commune.nom} (${commune.cp || commune.code_dep}) – VivreÀ`,
-        `${commune.nom} : immobilier, fibre, carburants — toutes les données.`,
+        `${commune.nom} : immobilier, fibre, carburants.`,
         `${BASE_URL}/ville/${commune.code_insee}`,
       );
-      wrap.innerHTML = buildVilleHTML(commune);
+      col1.innerHTML = buildVilleHTML(commune);
+      col1.classList.add('fade-up');
       try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(_) {}
       loadFuelIntoEl('fuel-main', commune);
+
     } catch (err) {
-      wrap.innerHTML = `<p class="text-center text-red-400 py-12">Erreur : ${esc(err.message)}</p>`;
+      col1.innerHTML = `<p class="text-center text-red-400 py-12">Erreur : ${esc(err.message)}</p>`;
     }
   }
 
   function buildVilleHTML(c) {
-    const dens = c.surface_km2 && c.population ? Math.round(c.population / c.surface_km2) : null;
+    const dens    = c.surface_km2 && c.population ? Math.round(c.population / c.surface_km2) : null;
     const fibreOk = c.fibre_pct != null;
-    const fc = !fibreOk ? 'text-gray-500'   : c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
-    const fb = !fibreOk ? 'bg-card'         : c.fibre_pct >= 80 ? 'bg-emerald-500/10' : c.fibre_pct >= 40 ? 'bg-amber-500/10' : 'bg-rose-500/10';
-    const fbc= !fibreOk ? 'bg-gray-700'     : c.fibre_pct >= 80 ? 'bg-emerald-400'    : c.fibre_pct >= 40 ? 'bg-amber-400'    : 'bg-rose-400';
+    const fc  = !fibreOk ? 'text-gray-500'  : c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
+    const fb  = !fibreOk ? 'bg-card'        : c.fibre_pct >= 80 ? 'bg-emerald-500/10' : c.fibre_pct >= 40 ? 'bg-amber-500/10' : 'bg-rose-500/10';
+    const fbc = !fibreOk ? 'bg-gray-700'    : c.fibre_pct >= 80 ? 'bg-emerald-400'    : c.fibre_pct >= 40 ? 'bg-amber-400'    : 'bg-rose-400';
 
     return `
     <div class="mb-6">
@@ -470,7 +516,7 @@
           </button>
           ${c.lat && c.lon ? `<a href="https://www.google.com/maps?q=${c.lat},${c.lon}" target="_blank" rel="noopener"
              class="text-xs border border-border rounded-lg px-3 py-1.5 text-gray-400 hover:text-white hover:border-indigo-500 transition-colors">Carte ↗</a>` : ''}
-          <button onclick="activateCompareMode('${esc(c.code_insee)}','${esc(c.nom)}')"
+          <button onclick="toggleComparisonMode('${esc(c.code_insee)}','${esc(c.nom)}')"
             class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-3 py-1.5 transition-colors font-medium flex items-center gap-1.5">
             <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
             Comparer
@@ -492,9 +538,9 @@
       </div>
       <div class="bento-card ${fb} border border-border rounded-2xl p-5">
         <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Fibre FTTH</p>
-        <p class="text-2xl font-bold ${fc}">${c.fibre_pct != null ? c.fibre_pct + ' %' : '—'}</p>
+        <p class="text-2xl font-bold ${fc}">${fibreOk ? c.fibre_pct + ' %' : '—'}</p>
         <p class="text-xs text-gray-500 mt-1">locaux raccordables</p>
-        ${c.fibre_pct != null ? `<div class="mt-2 bg-black/20 rounded-full h-1.5"><div class="bar-fill h-1.5 rounded-full ${fbc}" style="width:${c.fibre_pct}%"></div></div>` : ''}
+        ${fibreOk ? `<div class="mt-2 bg-black/20 rounded-full h-1.5"><div class="bar-fill h-1.5 rounded-full ${fbc}" style="width:${c.fibre_pct}%"></div></div>` : ''}
       </div>
       <div class="bento-card bg-card border border-border rounded-2xl p-5">
         <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Code postal</p>
@@ -509,7 +555,7 @@
         <h2 class="text-sm font-semibold text-white">Immobilier (DVF)</h2>
         <span class="badge bg-indigo-500/20 text-indigo-300">${c.immo.annee_dvf || 'DVF'}</span>
       </div>
-      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-3">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
         ${c.immo.prix_m2_median ? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Prix médian m²</p><p class="text-xl font-bold text-white">${Math.round(c.immo.prix_m2_median).toLocaleString('fr')} €</p></div>` : ''}
         ${c.immo.loyer_median   ? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Loyer médian m²</p><p class="text-xl font-bold text-white">${c.immo.loyer_median.toFixed(1)} €</p></div>` : ''}
         ${c.immo.nb_transactions? `<div><p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Transactions</p><p class="text-xl font-bold text-white">${c.immo.nb_transactions.toLocaleString('fr')}</p></div>` : ''}
@@ -532,71 +578,70 @@
     `;
   }
 
-  // ── Comparaison inline (bouton sur fiche ville) ───────────────────────────
-  function activateCompareMode(codeA, nomA) {
-    const app = document.getElementById('app');
-    const communeA = state.currentCommune; // données déjà chargées
-    history.pushState(null, '', `/comparer/${codeA}`);
+  // ── Mode Comparaison ──────────────────────────────────────────────────────
+  /**
+   * toggleComparisonMode(codeA, nomA)
+   *
+   * Appelé par le bouton "Comparer" sur la fiche ville.
+   * - Met isComparisonMode = true
+   * - Affiche city-details-2 (vide) à droite de city-details-1
+   * - Initialise une barre de recherche dans city-details-2
+   *
+   * Aucune navigation, aucun rechargement de la ville A.
+   */
+  function toggleComparisonMode(codeA, nomA) {
+    if (isComparisonMode) return;   // déjà actif
+    isComparisonMode = true;
+    console.log('[VivreÀ] toggleComparisonMode → codeA =', codeA, '(type:', typeof codeA, ')');
 
-    app.innerHTML = `
-      <div class="mb-4 flex items-center gap-3 text-xs text-gray-500">
-        <button onclick="navigate('/ville/${codeA}', event)" class="hover:text-white transition-colors">← Retour à la fiche</button>
-        <span class="text-gray-700">|</span>
-        <span class="text-gray-600">Mode comparaison côte à côte</span>
+    history.pushState(null, '', '/comparer/' + codeA);
+
+    // Ajouter la classe de séparation visuelle sur la colonne A
+    const col1 = document.getElementById('city-details-1');
+    if (col1) col1.classList.add('in-compare');
+
+    // Afficher et remplir la colonne B
+    const col2 = document.getElementById('city-details-2');
+    if (!col2) { console.error('[VivreÀ] city-details-2 introuvable'); return; }
+
+    col2.classList.remove('hidden');
+    col2.innerHTML = `
+      <div class="flex items-center gap-2 mb-4 pb-2 border-b border-purple-500/30">
+        <div class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></div>
+        <h2 class="text-sm font-bold text-purple-400 truncate" id="cmp-col-title">Choisir une ville</h2>
+        <button onclick="closeComparisonMode('${esc(codeA)}')"
+          class="ml-auto text-gray-600 hover:text-white transition-colors leading-none shrink-0"
+          title="Fermer la comparaison">✕</button>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        <!-- Colonne A -->
-        <div class="compare-col-a pr-0 lg:pr-6 min-w-0">
-          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-indigo-500/30">
-            <div class="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></div>
-            <h2 class="text-sm font-bold text-indigo-400 truncate">${esc(nomA)}</h2>
-            <a href="/ville/${codeA}" onclick="navigate('/ville/${codeA}',event)" class="ml-auto text-xs text-gray-600 hover:text-indigo-400 transition-colors shrink-0">Vue complète ↗</a>
-          </div>
-          <div id="col-a-content"></div>
-        </div>
-
-        <!-- Colonne B -->
-        <div class="min-w-0">
-          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-purple-500/30">
-            <div class="w-2 h-2 rounded-full bg-purple-500 shrink-0"></div>
-            <h2 class="text-sm font-bold text-purple-400 truncate" id="col-b-label">Choisir une ville</h2>
-            <button onclick="navigate('/ville/${codeA}', event)" class="ml-auto text-gray-600 hover:text-white transition-colors text-base leading-none shrink-0">✕</button>
-          </div>
-
-          <!-- Barre de recherche -->
-          <div id="cmp-search-wrap" class="relative mb-3">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
-              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            </span>
-            <input id="cmp-input" type="search" autocomplete="off" spellcheck="false"
-              class="search-input w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-all"
-              placeholder="Chercher une ville à comparer…" />
-          </div>
-          <ul id="cmp-dropdown" class="hidden mb-3 bg-card border border-border rounded-xl overflow-hidden shadow-2xl max-h-52 overflow-y-auto"></ul>
-
-          <div id="col-b-content">
-            <div class="text-center py-10 text-gray-600 text-sm">
-              <svg class="mx-auto mb-3 opacity-30" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              Tapez le nom d'une ville pour comparer
-            </div>
-          </div>
-        </div>
+      <div id="cmp-search-wrap" class="relative mb-3">
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </span>
+        <input id="cmp-input" type="search" autocomplete="off" spellcheck="false"
+          class="search-input w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-gray-500 outline-none transition-all"
+          placeholder="Chercher une ville à comparer…" />
       </div>
-    `;
+      <ul id="cmp-dropdown" class="hidden mb-3 bg-card border border-border rounded-xl overflow-hidden shadow-2xl max-h-52 overflow-y-auto"></ul>
 
-    // Charger colonne A
-    if (communeA && communeA.code_insee === codeA) {
-      document.getElementById('col-a-content').innerHTML = buildCompactHTML(communeA, 'a');
-      loadFuelIntoEl('fuel-a', communeA);
-    } else {
-      loadCityIntoCol('col-a-content', codeA, 'a');
-    }
+      <div id="city-details-2-content" class="text-center py-10 text-gray-600 text-sm">
+        <svg class="mx-auto mb-3 opacity-30" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Tapez le nom d'une commune pour comparer
+      </div>`;
 
-    // Initialiser la recherche colonne B
     initCmpSearch(codeA);
     setTimeout(() => document.getElementById('cmp-input')?.focus(), 80);
+  }
+
+  function closeComparisonMode(codeA) {
+    isComparisonMode = false;
+    history.pushState(null, '', '/ville/' + codeA);
+
+    const col1 = document.getElementById('city-details-1');
+    if (col1) col1.classList.remove('in-compare');
+
+    const col2 = document.getElementById('city-details-2');
+    if (col2) { col2.classList.add('hidden'); col2.innerHTML = ''; }
   }
 
   function initCmpSearch(codeA) {
@@ -605,58 +650,74 @@
     if (!input) return;
 
     let timer = null;
+
     input.oninput = () => {
       const q = input.value.trim();
       clearTimeout(timer);
       if (!q) { hideDD(dropdown); return; }
+
       timer = setTimeout(async () => {
         if (!state.workerReady) return;
-        const results = await wSearch(q, 7, 'CMP');
-        renderDD(dropdown, results, input, async r => {
-          input.value = r.nom;
-          hideDD(dropdown);
-          // Mettre à jour header + URL
-          const lbl = document.getElementById('col-b-label');
-          if (lbl) lbl.textContent = r.nom;
-          history.pushState(null, '', `/comparer/${codeA}/${r.code_insee}`);
-          // Masquer la barre de recherche
-          document.getElementById('cmp-search-wrap')?.classList.add('hidden');
-          // Charger la ville B
-          await loadCityIntoCol('col-b-content', r.code_insee, 'b');
-          // Lien "Changer" pour réafficher la search
-          const wrap = document.getElementById('cmp-search-wrap');
-          if (wrap) {
-            const changeBtn = document.createElement('button');
-            changeBtn.className = 'text-xs text-gray-500 hover:text-indigo-400 transition-colors mb-3 block';
-            changeBtn.textContent = '↺ Changer de ville';
-            changeBtn.onclick = () => { wrap.classList.remove('hidden'); input.value = ''; input.focus(); changeBtn.remove(); };
-            wrap.after(changeBtn);
-          }
-        });
+        try {
+          const results = await wSearch(q, 7, 'CMP');
+          renderDD(dropdown, results, input, async r => {
+            input.value = r.nom;
+            hideDD(dropdown);
+
+            const title = document.getElementById('cmp-col-title');
+            if (title) title.textContent = r.nom;
+            history.pushState(null, '', '/comparer/' + codeA + '/' + r.code_insee);
+
+            // Masquer la barre de recherche
+            const wrap = document.getElementById('cmp-search-wrap');
+            if (wrap) wrap.classList.add('hidden');
+
+            // Charger la ville B
+            const content = document.getElementById('city-details-2-content');
+            if (content) {
+              content.innerHTML = `<div class="skeleton h-28 rounded-xl mb-2"></div><div class="skeleton h-28 rounded-xl"></div>`;
+              console.log('[VivreÀ] Chargement ville B – code_insee =', r.code_insee, '(type:', typeof r.code_insee, ')');
+              const communeB = await fetchByInsee(r.code_insee);
+              if (!communeB) {
+                content.innerHTML = `<p class="text-sm text-gray-500 text-center py-6">Commune introuvable (${esc(r.code_insee)}).</p>`;
+              } else {
+                content.innerHTML = buildCompactHTML(communeB);
+                loadFuelIntoEl('fuel-cmp', communeB);
+              }
+            }
+
+            // Bouton "Changer de ville"
+            if (wrap) {
+              const changeBtn = document.createElement('button');
+              changeBtn.className = 'text-xs text-gray-500 hover:text-indigo-400 transition-colors mb-3 block';
+              changeBtn.textContent = '↺ Changer de ville';
+              changeBtn.onclick = () => {
+                wrap.classList.remove('hidden');
+                input.value = '';
+                input.focus();
+                changeBtn.remove();
+              };
+              wrap.after(changeBtn);
+            }
+          });
+        } catch (e) {
+          console.error('[VivreÀ] Erreur recherche comparaison :', e);
+        }
       }, 150);
     };
-    input.onkeydown = e => { if (e.key === 'Escape') navigate(`/ville/${codeA}`); };
+
+    input.onkeydown = e => { if (e.key === 'Escape') closeComparisonMode(codeA); };
+
     document.addEventListener('click', e => {
       if (!e.target.closest('#cmp-input') && !e.target.closest('#cmp-dropdown')) hideDD(dropdown);
     });
   }
 
-  async function loadCityIntoCol(colId, code, side) {
-    const el = document.getElementById(colId);
-    if (!el) return;
-    el.innerHTML = `<div class="skeleton h-28 rounded-xl mb-2"></div><div class="skeleton h-28 rounded-xl"></div>`;
-    const commune = await fetchByInsee(code);
-    if (!commune) { el.innerHTML = `<p class="text-sm text-gray-500 text-center py-6">Commune introuvable.</p>`; return; }
-    el.innerHTML = buildCompactHTML(commune, side);
-    loadFuelIntoEl(`fuel-${side}`, commune);
-  }
-
-  // HTML compact pour les colonnes de comparaison
-  function buildCompactHTML(c, side) {
-    const isA = side === 'a';
+  // HTML compact pour la colonne de comparaison
+  function buildCompactHTML(c) {
     const fibreOk = c.fibre_pct != null;
-    const fc   = !fibreOk ? 'text-gray-500' : c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
-    const fbc  = !fibreOk ? 'bg-gray-700'   : c.fibre_pct >= 80 ? 'bg-emerald-400'   : c.fibre_pct >= 40 ? 'bg-amber-400'   : 'bg-rose-400';
+    const fc  = !fibreOk ? 'text-gray-500' : c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
+    const fbc = !fibreOk ? 'bg-gray-700'   : c.fibre_pct >= 80 ? 'bg-emerald-400'   : c.fibre_pct >= 40 ? 'bg-amber-400'   : 'bg-rose-400';
     const dens = c.surface_km2 && c.population ? Math.round(c.population / c.surface_km2) : null;
 
     return `
@@ -673,55 +734,50 @@
         </div>
         <div class="bg-card border border-border rounded-xl p-3">
           <p class="text-xs text-gray-500 mb-0.5">Fibre FTTH</p>
-          <p class="text-base font-bold ${fc}">${c.fibre_pct != null ? c.fibre_pct + ' %' : '—'}</p>
-          ${c.fibre_pct != null ? `<div class="mt-1 bg-black/20 rounded-full h-1"><div class="bar-fill h-1 rounded-full ${fbc}" style="width:${c.fibre_pct}%"></div></div>` : ''}
+          <p class="text-base font-bold ${fc}">${fibreOk ? c.fibre_pct + ' %' : '—'}</p>
+          ${fibreOk ? `<div class="mt-1 bg-black/20 rounded-full h-1"><div class="bar-fill h-1 rounded-full ${fbc}" style="width:${c.fibre_pct}%"></div></div>` : ''}
         </div>
         <div class="bg-card border border-border rounded-xl p-3">
           <p class="text-xs text-gray-500 mb-0.5">Code postal</p>
           <p class="text-base font-bold text-white">${c.cp || '—'}</p>
         </div>
       </div>
-
       ${c.immo ? `
       <div class="bg-card border border-border rounded-xl p-3">
-        <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Immobilier <span class="text-gray-600 normal-case">${c.immo.annee_dvf || ''}</span></p>
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Immobilier ${c.immo.annee_dvf || ''}</p>
         <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
           ${c.immo.prix_m2_median ? `<div><span class="text-xs text-gray-500">Prix m²</span><br/><strong class="text-white">${Math.round(c.immo.prix_m2_median).toLocaleString('fr')} €</strong></div>` : ''}
           ${c.immo.loyer_median   ? `<div><span class="text-xs text-gray-500">Loyer m²</span><br/><strong class="text-white">${c.immo.loyer_median.toFixed(1)} €</strong></div>` : ''}
         </div>
       </div>` : ''}
-
       <div class="bg-card border border-border rounded-xl p-3">
-        <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Carburants (proximité)</p>
-        <div id="fuel-${side}"><div class="skeleton h-6 rounded-lg"></div></div>
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-2">Carburants</p>
+        <div id="fuel-cmp"><div class="skeleton h-6 rounded-lg"></div></div>
       </div>
-
       <a href="/ville/${c.code_insee}" onclick="navigate('/ville/${c.code_insee}',event)"
-         class="inline-block text-xs text-gray-500 hover:text-${isA ? 'indigo' : 'purple'}-400 transition-colors">
+         class="inline-block text-xs text-gray-500 hover:text-purple-400 transition-colors">
         Fiche complète de ${esc(c.nom)} →
       </a>
     </div>`;
   }
 
-  // ── Comparaison depuis URL directe /comparer/A/B ─────────────────────────
+  // ── Comparaison depuis URL directe /comparer/A[/B] ────────────────────────
   async function renderComparePage(container, codes) {
-    const wrap = document.createElement('div');
-    wrap.className = 'fade-up';
-    container.appendChild(wrap);
-
     const [codeA, codeB] = codes;
 
-    // Un seul code : activer le mode comparaison depuis la ville A
     if (!codeB) {
-      state.currentCommune = null;
+      // Un seul code → charger la ville A puis activer le mode comparaison
       await renderVille(container, codeA);
-      // Déclencher le mode comparaison après chargement
       setTimeout(() => {
-        if (state.currentCommune) activateCompareMode(codeA, state.currentCommune.nom);
-      }, 300);
+        if (state.currentCommune) toggleComparisonMode(codeA, state.currentCommune.nom);
+      }, 200);
       return;
     }
 
+    // Deux codes → comparaison directe (URL partageable)
+    const wrap = document.createElement('div');
+    wrap.className = 'fade-up';
+    container.appendChild(wrap);
     wrap.innerHTML = `<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">${Array(8).fill('<div class="skeleton h-24 rounded-xl"></div>').join('')}</div>`;
 
     const [a, b] = await Promise.all([fetchByInsee(codeA), fetchByInsee(codeB)]);
@@ -739,15 +795,14 @@
         <span class="text-gray-700">|</span>
         <span>${esc(a.nom)} <span class="text-indigo-400">vs</span> ${esc(b.nom)}</span>
       </div>
-
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="compare-col-a pr-0 lg:pr-6 min-w-0">
+        <div class="min-w-0" style="border-right:1px solid #2a2a2a;padding-right:1.5rem">
           <div class="flex items-center gap-2 mb-4 pb-2 border-b border-indigo-500/30">
             <div class="w-2 h-2 rounded-full bg-indigo-500 shrink-0"></div>
             <h2 class="text-sm font-bold text-indigo-400 truncate">${esc(a.nom)}</h2>
             <a href="/ville/${codeA}" onclick="navigate('/ville/${codeA}',event)" class="ml-auto text-xs text-gray-600 hover:text-indigo-400 transition-colors shrink-0">Vue complète ↗</a>
           </div>
-          ${buildCompactHTML(a, 'a')}
+          ${buildCompactHTML(a)}
         </div>
         <div class="min-w-0">
           <div class="flex items-center gap-2 mb-4 pb-2 border-b border-purple-500/30">
@@ -755,30 +810,34 @@
             <h2 class="text-sm font-bold text-purple-400 truncate">${esc(b.nom)}</h2>
             <a href="/ville/${codeB}" onclick="navigate('/ville/${codeB}',event)" class="ml-auto text-xs text-gray-600 hover:text-purple-400 transition-colors shrink-0">Vue complète ↗</a>
           </div>
-          ${buildCompactHTML(b, 'b')}
+          ${buildCompactHTML(b)}
         </div>
       </div>
-
       <div class="my-6 flex justify-center overflow-hidden">
         <ins class="adsbygoogle" style="display:block;width:100%;max-width:728px;height:90px"
              data-ad-client="ca-pub-2156803616781959" data-ad-slot="auto" data-ad-format="auto" data-full-width-responsive="true"></ins>
       </div>
-      ${buildAmazonBlock(null, 'compare')}
-    `;
+      ${buildAmazonBlock(null, 'compare')}`;
 
     try { (adsbygoogle = window.adsbygoogle || []).push({}); } catch(_) {}
-    loadFuelIntoEl('fuel-a', a);
-    loadFuelIntoEl('fuel-b', b);
+    // Dans ce mode les IDs fuel-cmp sont partagés → on les rend distincts
+    loadFuelIntoEl('fuel-cmp', a);
+    loadFuelIntoEl('fuel-cmp', b);
   }
 
   // ── Carburants ────────────────────────────────────────────────────────────
 
   /**
-   * Formate un prix de carburant stocké en euros décimaux (ex: 1.859).
+   * Formate un prix carburant en euros avec 3 décimales.
+   *
+   * Le JSON stocke désormais des euros décimaux normalisés (ex: 1.732).
+   * Aucune division nécessaire ici.
+   * Garde-fou : si jamais une ancienne valeur > 100 est présente, on divise.
    */
   function fmtFuelPrice(raw) {
     if (raw == null || raw === 0) return '—';
-    return Number(raw).toFixed(3) + ' €';
+    const price = raw > 100 ? raw / 1000 : raw;
+    return price.toFixed(3) + ' €';
   }
 
   async function loadFuelIntoEl(elId, commune) {
@@ -788,10 +847,12 @@
       const data = await fetchJSON(`${DATA_BASE}/carburants.json`);
       if (!data?.stations?.length) throw new Error('vide');
 
-      const cp  = commune.cp || '';
-      const dep = (commune.code_dep || '').padStart(2, '0');
+      // Comparaison String vs String pour le code postal
+      const cp  = String(commune.cp || '');
+      const dep = String(commune.code_dep || '').padStart(2, '0');
+
       const stations = data.stations.filter(s =>
-        s.cp === cp || (dep && s.cp?.startsWith(dep))
+        String(s.cp) === cp || (dep && String(s.cp || '').startsWith(dep))
       ).slice(0, 6);
 
       if (!stations.length) {
@@ -799,7 +860,6 @@
         return;
       }
 
-      // Vue complète (élément "fuel-main" sur la fiche ville)
       if (elId === 'fuel-main') {
         const TYPES = ['SP95', 'SP98', 'Gazole', 'E10', 'E85', 'GPLc'];
         const ts = new Date(data.updated_at).toLocaleString('fr');
@@ -825,10 +885,10 @@
         return;
       }
 
-      // Vue compacte (colonnes de comparaison)
-      const COMPACT_TYPES = ['SP95', 'Gazole', 'E10'];
-      const rows = COMPACT_TYPES.map(t => {
-        const prices = stations.map(s => s.prix[t]).filter(Boolean);
+      // Vue compacte
+      const COMPACT = ['SP95', 'Gazole', 'E10'];
+      const rows = COMPACT.map(t => {
+        const prices = stations.map(s => s.prix[t]).filter(v => v != null && v > 0);
         if (!prices.length) return '';
         const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
         return `<span class="inline-flex items-center gap-1 text-xs"><span class="text-gray-500">${t}</span><strong class="text-white">${fmtFuelPrice(avg)}</strong></span>`;
@@ -836,54 +896,50 @@
 
       el.innerHTML = rows.length
         ? `<div class="flex flex-wrap gap-x-4 gap-y-1">${rows.join('')}</div>`
-        : `<p class="text-xs text-gray-500">Aucune donnée disponible.</p>`;
+        : `<p class="text-xs text-gray-500">Aucune donnée.</p>`;
 
     } catch (_) {
       el.innerHTML = `<p class="text-xs text-gray-500">Indisponible.</p>`;
     }
   }
 
-  // ── Amazon affilié dynamique ──────────────────────────────────────────────
-  function buildAmazonBlock(c, ctx = 'ville') {
+  // ── Amazon affilié ────────────────────────────────────────────────────────
+  function buildAmazonBlock(c, ctx) {
     const AMZN = `https://www.amazon.fr/s?tag=${AMZN_TAG}&k=`;
     let items = [];
 
     if (ctx === 'compare') {
       items = [
-        { icon: '📦', label: 'Cartons & équipement déménagement',  q: 'cartons+déménagement+kit' },
-        { icon: '📋', label: 'Guides immobilier & investissement',  q: 'guide+investissement+immobilier+france' },
+        { icon: '📦', label: 'Cartons & équipement déménagement', q: 'cartons+déménagement+kit' },
+        { icon: '📋', label: 'Guides immobilier & investissement', q: 'guide+investissement+immobilier+france' },
         { icon: '🔌', label: 'Multiprises & connectivité maison',  q: 'multiprise+connectée+smart' },
       ];
     } else if (c) {
-      const pop   = c.population || 0;
+      const pop = c.population || 0;
       const fibre = c.fibre_pct;
-      const prixM2= c.immo?.prix_m2_median;
-
+      const prixM2 = c.immo?.prix_m2_median;
       if (pop >= 50000) {
-        items.push({ icon: '🚲', label: 'Vélos électriques & mobilité urbaine',  q: 'vélo+électrique+urbain' });
-        items.push({ icon: '🏠', label: 'Meubles & optimisation appartement',     q: 'meuble+gain+place+appartement' });
+        items.push({ icon: '🚲', label: 'Vélos électriques & mobilité urbaine', q: 'vélo+électrique+urbain' });
+        items.push({ icon: '🏠', label: 'Meubles & optimisation appartement',   q: 'meuble+gain+place+appartement' });
       } else if (pop >= 5000) {
-        items.push({ icon: '🌿', label: 'Jardinage & aménagement extérieur',      q: 'jardinage+terrasse+outillage' });
-        items.push({ icon: '🔧', label: 'Outillage & bricolage maison',           q: 'perceuse+visseuse+bricolage' });
+        items.push({ icon: '🌿', label: 'Jardinage & aménagement extérieur',    q: 'jardinage+terrasse+outillage' });
+        items.push({ icon: '🔧', label: 'Outillage & bricolage maison',         q: 'perceuse+visseuse+bricolage' });
       } else {
-        items.push({ icon: '☀️', label: 'Panneaux solaires & autonomie énergétique', q: 'panneau+solaire+maison+autonomie' });
-        items.push({ icon: '🌱', label: 'Potager & graines bio',                  q: 'potager+graines+permaculture' });
+        items.push({ icon: '☀️', label: 'Panneaux solaires & autonomie',        q: 'panneau+solaire+maison+autonomie' });
+        items.push({ icon: '🌱', label: 'Potager & graines bio',                q: 'potager+graines+permaculture' });
       }
-
       if (fibre != null && fibre < 50) {
-        items.push({ icon: '📡', label: 'Routeurs 4G/5G pour zones sans fibre', q: 'routeur+4G+5G+maison+rural' });
+        items.push({ icon: '📡', label: 'Routeurs 4G/5G zones rurales',         q: 'routeur+4G+5G+maison+rural' });
       } else {
-        items.push({ icon: '💻', label: 'Box fibre & Wi-Fi 6 haut débit',        q: 'routeur+wifi+6+mesh+fibre' });
+        items.push({ icon: '💻', label: 'Box fibre & Wi-Fi 6 haut débit',       q: 'routeur+wifi+6+mesh+fibre' });
       }
-
       if (prixM2 && prixM2 > 3500) {
-        items.push({ icon: '📚', label: 'Guides investissement immobilier',       q: 'guide+investissement+immobilier+locatif' });
+        items.push({ icon: '📚', label: 'Guides investissement immobilier',      q: 'guide+investissement+immobilier+locatif' });
       }
     }
 
     if (!items.length) return '';
     const cols = Math.min(items.length, 3);
-
     return `
     <div class="amzn-card rounded-2xl p-5 mb-4">
       <div class="flex items-center gap-2 mb-3">
@@ -900,29 +956,47 @@
           <svg class="ml-auto shrink-0 opacity-40 group-hover:opacity-80" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 7h10v10M7 17 17 7"/></svg>
         </a>`).join('')}
       </div>
-      <p class="text-xs text-gray-600 mt-2">Liens d'affiliation Amazon (vivrea-21) — commission perçue sur les achats éligibles.</p>
+      <p class="text-xs text-gray-600 mt-2">Liens d'affiliation Amazon (vivrea-21).</p>
     </div>`;
   }
 
   // ── Fetch helpers ─────────────────────────────────────────────────────────
   async function fetchByInsee(code) {
-    const dep = code.startsWith('97') ? code.slice(0, 3) : code.slice(0, 2);
+    // Force String pour éviter tout conflit String vs Number
+    const codeStr = String(code).trim().padStart(5, '0');
+    console.log('[VivreÀ] fetchByInsee :', codeStr, '(type entrée:', typeof code, ')');
+
+    const dep = codeStr.startsWith('97') ? codeStr.slice(0, 3) : codeStr.slice(0, 2);
     const details = await fetchDep(dep);
+
     if (details) {
-      const f = details.find(c => c.code_insee === code);
-      if (f) return enrich(f);
+      // String(c.code_insee) === String(codeStr) — comparaison forcée en String
+      const found = details.find(c => String(c.code_insee) === codeStr);
+      if (found) {
+        console.log('[VivreÀ] Trouvé dans dept', dep, ':', found.nom);
+        return enrich(found);
+      }
+      console.log('[VivreÀ] Non trouvé dans dept', dep, '— fallback API Géo');
     }
-    const raw = await fetchJSON(`https://geo.api.gouv.fr/communes/${code}?fields=code,nom,codesPostaux,codeDepartement,population,surface,centre`);
+
+    // Fallback API Géo
+    const raw = await fetchJSON(
+      `https://geo.api.gouv.fr/communes/${codeStr}?fields=code,nom,codesPostaux,codeDepartement,population,surface,centre`
+    );
     return raw?.code ? enrich(geoMap(raw)) : null;
   }
 
   async function fetchBySlug(slug) {
     const nom  = slug.replace(/-/g, ' ');
-    const list = await fetchJSON(`https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(nom)}&fields=code,nom,codesPostaux,codeDepartement,population,surface,centre&limit=1`);
+    const list = await fetchJSON(
+      `https://geo.api.gouv.fr/communes?nom=${encodeURIComponent(nom)}&fields=code,nom,codesPostaux,codeDepartement,population,surface,centre&limit=1`
+    );
     if (!list?.length) return null;
-    const dep  = list[0].codeDepartement;
+    const codeStr = String(list[0].code).padStart(5, '0');
+    const dep     = list[0].codeDepartement;
     const details = await fetchDep(dep);
-    return enrich(details?.find(c => c.code_insee === list[0].code) || geoMap(list[0]));
+    const found   = details?.find(c => String(c.code_insee) === codeStr);
+    return enrich(found || geoMap(list[0]));
   }
 
   async function fetchDep(dep) {
@@ -934,19 +1008,21 @@
   function geoMap(c) {
     const coords = c.centre?.coordinates || [null, null];
     return {
-      code_insee: c.code, nom: c.nom,
-      codes_postaux: c.codesPostaux || [],
-      cp: (c.codesPostaux || [])[0] || '',
-      code_dep: c.codeDepartement || '',
-      population: c.population || 0,
-      surface_km2: c.surface ? Math.round(c.surface / 100) : null,
+      code_insee:    String(c.code).padStart(5, '0'),
+      nom:           c.nom,
+      codes_postaux: (c.codesPostaux || []).map(String),
+      cp:            String((c.codesPostaux || [])[0] || ''),
+      code_dep:      String(c.codeDepartement || ''),
+      population:    c.population || 0,
+      surface_km2:   c.surface ? Math.round(c.surface / 100) : null,
       lat: coords[1], lon: coords[0],
     };
   }
 
   function enrich(c) {
     if (!c) return null;
-    if (!c.cp) c.cp = (c.codes_postaux || [])[0] || '';
+    c.code_insee = String(c.code_insee).padStart(5, '0');   // garantit String 5 chars
+    if (!c.cp) c.cp = String((c.codes_postaux || [])[0] || '');
     return c;
   }
 
