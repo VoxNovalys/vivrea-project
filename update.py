@@ -299,19 +299,25 @@ def fetch_fuel_prices() -> None:
         sample_done = False
 
         for pdv in root.findall("pdv"):
-            cp    = (pdv.get("cp") or "").strip()
-            ville = (pdv.findtext("ville") or "").strip()
-            lat_r = pdv.get("latitude")
-            lon_r = pdv.get("longitude")
+            cp          = (pdv.get("cp") or "").strip()
+            ville       = (pdv.findtext("ville") or "").strip()
+            adresse     = (pdv.findtext("adresse") or "").strip()
+            nom_station = (pdv.findtext("enseignes/enseigne") or "").strip()
+            lat_r       = pdv.get("latitude")
+            lon_r       = pdv.get("longitude")
 
             prix: dict[str, float] = {}
+            maj:  dict[str, str]   = {}
             for price_el in pdv.findall("prix"):
                 nom    = price_el.get("nom", "")
                 valeur = price_el.get("valeur", "")
+                maj_ts = price_el.get("maj", "")
                 if nom:
                     try:
                         price = normalize_fuel_price(valeur)
                         prix[nom] = price if price is not None else 0
+                        if maj_ts:
+                            maj[nom] = maj_ts
                     except Exception:
                         prix[nom] = 0
 
@@ -330,7 +336,16 @@ def fetch_fuel_prices() -> None:
             except (ValueError, TypeError):
                 lat = lon = None
 
-            stations.append({"cp": cp, "ville": ville, "lat": lat, "lon": lon, "prix": prix})
+            stations.append({
+                "nom":     nom_station,
+                "cp":      cp,
+                "ville":   ville,
+                "adresse": adresse,
+                "lat":     lat,
+                "lon":     lon,
+                "prix":    prix,
+                "maj":     maj,
+            })
 
         if not stations:
             log.warning("Aucune station parsée.")
