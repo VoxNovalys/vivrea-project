@@ -107,18 +107,18 @@ def normalize_fuel_price(raw_str: str) -> Optional[float]:
 
 
 def compute_vivrescore(
-    fibre_pct: Optional[float],
-    crime_d:   Optional[dict],
-    air_d:     Optional[dict],
-    socio_d:   Optional[dict],
-    chom_v:    Optional[float],
+    fibre_pct:   Optional[float],
+    crime_d:     Optional[dict],
+    air_d:       Optional[dict],
+    socio_d:     Optional[dict],
+    taux_pauv_v: Optional[float],
 ) -> Optional[int]:
     """
     Score synthétique de qualité de vie 20-100.
     Normalisé sur les dimensions disponibles uniquement.
     Retourne None si aucune dimension enrichie n'est disponible.
     Dimensions : fibre (20pts), sécurité (20pts), air (20pts),
-                 revenu médian (20pts), chômage (20pts).
+                 revenu médian (20pts), taux de pauvreté (20pts).
     Plancher : 20 (chaque dimension rapporte au minimum 4/20 pts).
     """
     pts = []
@@ -151,10 +151,10 @@ def compute_vivrescore(
         pts.append(20 if rev >= 30000 else 16 if rev >= 25000
                     else 12 if rev >= 20000 else 8 if rev >= 15000 else 4)
 
-    if chom_v is not None:
+    if taux_pauv_v is not None:
         max_pts += 20
-        pts.append(20 if chom_v <= 4 else 16 if chom_v <= 7
-                    else 12 if chom_v <= 10 else 8 if chom_v <= 15 else 4)
+        pts.append(20 if taux_pauv_v <= 10 else 16 if taux_pauv_v <= 15
+                    else 12 if taux_pauv_v <= 25 else 8 if taux_pauv_v <= 35 else 4)
 
     if not pts or max_pts == 0:
         return None
@@ -839,91 +839,6 @@ def fetch_filosofi() -> dict[str, dict]:
 
 
 # ---------------------------------------------------------------------------
-# Étape 7b – Chômage (INSEE RP 2021 – emploi et pop active)
-# ---------------------------------------------------------------------------
-
-def fetch_chomage() -> dict[str, float]:
-    """
-    Télécharge la base RP 2021 INSEE (emploi + pop active) par commune.
-    Calcule taux_chomage = CHOM1564_P / ACT1564_P × 100.
-    Essaie plusieurs URLs directes puis data.gouv.fr en fallback.
-    Retourne {code_insee: taux_pct} ou {} si indisponible.
-    """
-    import zipfile, csv, io
-
-    log.info("=== ÉTAPE 7b : Chômage (INSEE RP 2021) ===")
-    chomage: dict[str, float] = {}
-
-    # URLs directes INSEE — à mettre à jour si 404
-    # NOTE 2026-02 : toutes ces URLs retournent 404 (IDs de fichier obsolètes).
-    # L'INSEE sert désormais ces données via l'API Melodi (authentification requise).
-    # En attendant une source alternative publique, cette étape retourne {}.
-    # → VivreScore calculé sur 4 dimensions max (sans chômage).
-    DIRECT_URLS = [
-        "https://www.insee.fr/fr/statistiques/fichier/7704681/base-cc-emploi-pop-active-2021_geo2025_csv.zip",
-        "https://www.insee.fr/fr/statistiques/fichier/6461107/base-cc-emploi-pop-active-2021_geo2023_csv.zip",
-        "https://www.insee.fr/fr/statistiques/fichier/6461107/base-cc-emploi-pop-active-2021_csv.zip",
-    ]
-
-    raw_content = None
-
-    for url in DIRECT_URLS:
-        try:
-            resp = SESSION.get(url, timeout=120)
-            if resp.status_code == 200 and len(resp.content) > 10_000:
-                log.info("Chômage : %s (%.1f Mo)", url, len(resp.content) / 1024 / 1024)
-                raw_content = resp.content
-                break
-        except Exception:
-            continue
-
-    if not raw_content:
-        log.warning("Chômage : URLs directes INSEE inaccessibles")
-        return chomage
-
-    try:
-        with zipfile.ZipFile(io.BytesIO(raw_content)) as z:
-            csv_names = [
-                n for n in z.namelist()
-                if n.lower().endswith(".csv")
-                and "meta" not in n.lower()
-                and "doc"  not in n.lower()
-            ]
-            if not csv_names:
-                csv_names = [n for n in z.namelist() if n.lower().endswith(".csv")]
-            if not csv_names:
-                log.warning("Chômage : aucun CSV dans le ZIP")
-                return chomage
-
-            log.info("Chômage : lecture %s", csv_names[0])
-            raw = z.read(csv_names[0])
-
-        text = raw.decode("utf-8-sig", errors="replace")
-        sep  = ";" if text.count(";") > text.count(",") else ","
-
-        for row in csv.DictReader(io.StringIO(text), delimiter=sep):
-            code = (row.get("CODGEO") or row.get("codgeo") or "").strip()
-            if not code:
-                continue
-            code = code.zfill(5)
-
-            try:
-                chom = float(row.get("CHOM1564_P") or row.get("chom1564_p") or "0")
-                act  = float(row.get("ACT1564_P")  or row.get("act1564_p")  or "0")
-            except (ValueError, TypeError):
-                continue
-
-            if act > 0:
-                chomage[code] = round(chom / act * 100, 1)
-
-    except Exception as e:
-        log.warning("Chômage parsing erreur : %s", e)
-
-    log.info("Chômage : %d communes", len(chomage))
-    return chomage
-
-
-# ---------------------------------------------------------------------------
 # Étape 8 – Index + détails
 # ---------------------------------------------------------------------------
 
@@ -934,7 +849,6 @@ def build_index_and_details(
     crime:    dict,
     air:      dict,
     socio:    dict,
-    chomage:  dict,
 ) -> None:
     """
     Génère :
@@ -992,18 +906,15 @@ def build_index_and_details(
         if air_d:
             detail["air"] = air_d
 
-        # Socio-économique : Filosofi + chômage
+        # Socio-économique : Filosofi
         socio_d = socio.get(code_insee)
-        chom_v  = chomage.get(code_insee)
-        if socio_d or chom_v is not None:
-            socio_entry = dict(socio_d) if socio_d else {}
-            if chom_v is not None:
-                socio_entry["taux_chomage"] = chom_v
-            detail["socio"] = socio_entry
+        if socio_d:
+            detail["socio"] = dict(socio_d)
 
         # VivreScore — calculé après TOUTES les dimensions enrichies
         # Entrée index léger : [nom, code_insee(str), cp(str), pop(int), vivrescore(int|null)]
-        vivrescore = compute_vivrescore(fibre_pct, crime_d, air_d, socio_d, chom_v)
+        taux_pauv_v = socio_d.get("taux_pauvrete") if socio_d else None
+        vivrescore = compute_vivrescore(fibre_pct, crime_d, air_d, socio_d, taux_pauv_v)
         index_entries.append([nom, code_insee, cp_principal, population, vivrescore])
         if vivrescore is not None:
             detail["vivrescore"] = vivrescore
@@ -1041,7 +952,7 @@ def write_meta(nb_communes: int) -> None:
             "criminalite": "https://www.data.gouv.fr (SSMSI)",
             "air":         "https://data.atmo-france.org",
             "revenus":     "https://www.insee.fr (Filosofi 2021)",
-            "chomage":     "https://www.insee.fr (RP 2021)",
+            "pauvrete":    "https://www.insee.fr (Filosofi 2021)",
         },
     })
 
@@ -1066,10 +977,9 @@ def main() -> None:
     crime_data = fetch_crime_data()
     air_data   = fetch_air_quality()
     socio_data = fetch_filosofi()
-    chomage    = fetch_chomage()
     build_index_and_details(
         communes, dvf_stats, fibre_data,
-        crime_data, air_data, socio_data, chomage,
+        crime_data, air_data, socio_data,
     )
     write_meta(len(communes))
 
