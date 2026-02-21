@@ -549,7 +549,7 @@ def fetch_crime_data() -> dict[str, dict]:
         # Chercher la ressource CSV communale (pas dépt. ni régionale)
         commune_res = None
         for r in meta["resources"]:
-            title = (r.get("title", "") + r.get("description", "")).lower()
+            title = ((r.get("title") or "") + (r.get("description") or "")).lower()
             fmt   = r.get("format", "").lower()
             url_l = r.get("url", "").lower()
             is_csv = ("csv" in fmt or url_l.endswith(".csv")
@@ -585,28 +585,21 @@ def fetch_crime_data() -> dict[str, dict]:
         text = raw.decode("utf-8-sig", errors="replace")
         sep  = ";" if text.count(";") > text.count(",") else ","
 
-        faits_by:  dict[str, int] = {}
-        pop_by:    dict[str, int] = {}
-        annee_by:  dict[str, int] = {}
+        # Nouveau format 2025 : CODGEO_2025, nombre, taux_pour_mille (pré-calculé),
+        # est_diffuse ('diff'=public, 'ndiff'=secret), insee_pop
+        # Ancien format : Code.commune / CODGEO, faits, POP — rétrocompatibilité
+        faits_by:  dict[str, float] = {}
+        pop_by:    dict[str, int]   = {}
+        annee_by:  dict[str, int]   = {}
 
         for row in csv.DictReader(io.StringIO(text), delimiter=sep):
             code = (
-                row.get("Code.commune") or row.get("CODGEO") or
-                row.get("code_commune") or ""
+                row.get("CODGEO_2025") or row.get("Code.commune") or
+                row.get("CODGEO") or row.get("code_commune") or ""
             ).strip()
             if not code:
                 continue
             code = code.zfill(5)
-
-            try:
-                faits = int(float(row.get("faits") or row.get("valeur") or "0"))
-            except (ValueError, TypeError):
-                faits = 0
-
-            try:
-                pop = int(float(row.get("POP") or row.get("pop") or "0"))
-            except (ValueError, TypeError):
-                pop = 0
 
             try:
                 annee = int(str(row.get("annee") or row.get("Annee") or "0")[:4])
@@ -614,15 +607,35 @@ def fetch_crime_data() -> dict[str, dict]:
                 annee = 0
 
             prev = annee_by.get(code, 0)
+            if annee < prev:
+                continue  # ignorer les années antérieures
+
+            # Nouveau format : utiliser nombre + insee_pop
+            nombre_str = row.get("nombre") or row.get("faits") or row.get("valeur") or ""
+            est_diff   = (row.get("est_diffuse") or "diff").lower()
+            if est_diff == "ndiff" or nombre_str in ("NA", "na", ""):
+                continue  # données secrètes ou manquantes
+
+            try:
+                nombre = float(nombre_str.replace(",", "."))
+            except (ValueError, TypeError):
+                nombre = 0.0
+
+            pop_str = row.get("insee_pop") or row.get("POP") or row.get("pop") or "0"
+            try:
+                pop = int(float(pop_str.replace(",", ".") if isinstance(pop_str, str) else pop_str))
+            except (ValueError, TypeError):
+                pop = 0
+
             if annee > prev:
-                # Année plus récente trouvée → réinitialiser l'accumulateur
-                faits_by[code] = faits
+                # Année plus récente → réinitialiser l'accumulateur
+                faits_by[code] = nombre
                 annee_by[code] = annee
                 if pop > 0:
                     pop_by[code] = pop
-            elif annee == prev:
-                # Même année, catégorie différente → cumuler
-                faits_by[code] = faits_by.get(code, 0) + faits
+            else:
+                # Même année, indicateur différent → cumuler
+                faits_by[code] = faits_by.get(code, 0.0) + nombre
                 if pop > 0:
                     pop_by[code] = pop
 
@@ -672,27 +685,27 @@ def fetch_air_quality() -> dict[str, dict]:
             "service":      "WFS",
             "version":      "2.0.0",
             "request":      "GetFeature",
-            "TypeNames":    f"ind_atmo_{year}",
+            "TypeNames":    "ind:ind_atmo",
             "outputformat": "csv",
-            "CQL_FILTER":   f"type_zone='COM' AND date_ech='{date_str}'",
+            "CQL_FILTER":   f"type_zone='commune' AND date_ech='{date_str}'",
         }
         try:
             resp = SESSION.get(ATMO_WFS_BASE, params=params, timeout=120)
             if resp.status_code != 200 or len(resp.content) < 1000:
-                log.info("Air : ind_atmo_%d non disponible, essai suivant…", year)
+                log.info("Air : ind:ind_atmo %d non disponible, essai suivant…", year)
                 continue
 
             text = resp.content.decode("utf-8-sig", errors="replace")
             # Détecter une réponse d'erreur XML
             if "<ExceptionReport" in text[:500] or "ServiceException" in text[:500]:
-                log.info("Air : ind_atmo_%d erreur WFS, essai suivant…", year)
+                log.info("Air : ind:ind_atmo %d erreur WFS, essai suivant…", year)
                 continue
 
             total_by: dict[str, int] = {}
             count_by: dict[str, int] = {}
 
             for row in csv.DictReader(io.StringIO(text)):
-                if (row.get("type_zone") or "").upper() != "COM":
+                if (row.get("type_zone") or "").upper() != "COMMUNE":
                     continue
                 code = (row.get("code_zone") or "").strip().zfill(5)
                 if not code:
@@ -770,27 +783,53 @@ def fetch_filosofi() -> dict[str, dict]:
         sep  = ";" if text.count(";") > text.count(",") else ","
 
         for row in csv.DictReader(io.StringIO(text), delimiter=sep):
-            code = (row.get("CODGEO") or row.get("codgeo") or "").strip()
+            # Nouveau format SDMX long (GEO, FILOSOFI_MEASURE, OBS_VALUE) — INSEE 2025
+            # Rétrocompatibilité : ancien format large (CODGEO, MED21, TP6021)
+            code = (row.get("GEO") or row.get("CODGEO") or row.get("codgeo") or "").strip()
             if not code:
+                continue
+            # Nouveau format : GEO_OBJECT='COM' pour les communes
+            geo_obj = row.get("GEO_OBJECT", "")
+            if geo_obj and geo_obj.upper() not in ("COM", "COMMUNE"):
                 continue
             code = code.zfill(5)
 
-            try:
-                med = float((row.get("MED21") or row.get("med21") or "").replace(",", "."))
-            except (ValueError, TypeError):
-                med = None
-
-            try:
-                tp = float((row.get("TP6021") or row.get("tp6021") or "").replace(",", "."))
-            except (ValueError, TypeError):
-                tp = None
-
-            if med is not None or tp is not None:
-                socio[code] = {
-                    "revenu_median": round(med, 0) if med is not None else None,
-                    "taux_pauvrete": round(tp, 1)  if tp  is not None else None,
-                    "annee":         2021,
-                }
+            measure = row.get("FILOSOFI_MEASURE", "")
+            if measure:
+                # Nouveau format SDMX long — pivoter par mesure
+                value_str = (row.get("OBS_VALUE") or "").strip()
+                if not value_str:
+                    continue
+                if measure == "MED_SL":      # Revenu médian /UC/an (≈ ancien MED21)
+                    try:
+                        med = float(value_str.replace(",", "."))
+                        entry = socio.setdefault(code, {"annee": 2021})
+                        entry["revenu_median"] = round(med, 0)
+                    except (ValueError, TypeError):
+                        pass
+                elif measure == "PR_MD60":   # Taux pauvreté 60 % (≈ ancien TP6021)
+                    try:
+                        tp = float(value_str.replace(",", "."))
+                        entry = socio.setdefault(code, {"annee": 2021})
+                        entry["taux_pauvrete"] = round(tp, 1)
+                    except (ValueError, TypeError):
+                        pass
+            else:
+                # Ancien format large — rétrocompatibilité
+                try:
+                    med = float((row.get("MED21") or row.get("med21") or "").replace(",", "."))
+                except (ValueError, TypeError):
+                    med = None
+                try:
+                    tp = float((row.get("TP6021") or row.get("tp6021") or "").replace(",", "."))
+                except (ValueError, TypeError):
+                    tp = None
+                if med is not None or tp is not None:
+                    socio[code] = {
+                        "revenu_median": round(med, 0) if med is not None else None,
+                        "taux_pauvrete": round(tp, 1)  if tp  is not None else None,
+                        "annee":         2021,
+                    }
 
     except Exception as e:
         log.warning("Filosofi indisponible : %s", e)
@@ -815,7 +854,11 @@ def fetch_chomage() -> dict[str, float]:
     log.info("=== ÉTAPE 7b : Chômage (INSEE RP 2021) ===")
     chomage: dict[str, float] = {}
 
-    # URLs directes INSEE (identifiants de fichier potentiels – à jour 2025)
+    # URLs directes INSEE — à mettre à jour si 404
+    # NOTE 2026-02 : toutes ces URLs retournent 404 (IDs de fichier obsolètes).
+    # L'INSEE sert désormais ces données via l'API Melodi (authentification requise).
+    # En attendant une source alternative publique, cette étape retourne {}.
+    # → VivreScore calculé sur 4 dimensions max (sans chômage).
     DIRECT_URLS = [
         "https://www.insee.fr/fr/statistiques/fichier/7704681/base-cc-emploi-pop-active-2021_geo2025_csv.zip",
         "https://www.insee.fr/fr/statistiques/fichier/6461107/base-cc-emploi-pop-active-2021_geo2023_csv.zip",
