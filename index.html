@@ -693,7 +693,7 @@
           : '<p class="text-xs text-gray-600 mt-1">Données insuffisantes</p>'}
       </div>
       <div class="bento-card bg-card border border-border rounded-2xl p-5">
-        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Population <a href="https://www.insee.fr/fr/statistiques/2011101?geo=COM-${c.code_insee}" target="_blank" rel="noopener noreferrer" class="hover:text-gray-300 transition-colors">↗</a></p>
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Population <a href="https://www.insee.fr/fr/statistiques/2011101?geo=COM-${c.code_insee}" target="_blank" rel="noopener noreferrer" class="ml-0.5 text-sm text-gray-300 hover:text-white transition-colors">↗</a></p>
         <p class="text-2xl font-bold text-white">${c.population ? c.population.toLocaleString('fr') : '—'}</p>
         ${dens ? `<p class="text-xs text-gray-500 mt-1">${dens.toLocaleString('fr')} hab/km²</p>` : ''}
       </div>
@@ -703,7 +703,7 @@
         <p class="text-xs text-gray-500 mt-1">km²</p>
       </div>
       <div class="bento-card ${fb} border border-border rounded-2xl p-5">
-        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Fibre FTTH <a href="https://www.arcep.fr/cartes-et-donnees/nos-publications-chiffrees/observatoire-du-tres-haut-debit.html" target="_blank" rel="noopener noreferrer" class="hover:text-gray-300 transition-colors">↗</a></p>
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Fibre FTTH <a href="https://www.data.gouv.fr/fr/datasets/le-marche-du-haut-et-tres-haut-debit-fixe-deploiements/" target="_blank" rel="noopener noreferrer" class="ml-0.5 text-sm text-gray-300 hover:text-white transition-colors">↗</a></p>
         <p class="text-2xl font-bold ${fc}">${fibreOk ? c.fibre_pct + ' %' : '—'}</p>
         <p class="text-xs text-gray-500 mt-1">${fibreOk ? 'des locaux peuvent accéder à la fibre' : 'données ARCEP non disponibles'}</p>
         ${fibreOk ? `<div class="mt-2 bg-black/20 rounded-full h-1.5"><div class="bar-fill h-1.5 rounded-full ${fbc}" style="width:${c.fibre_pct}%"></div></div>` : ''}
@@ -720,7 +720,7 @@
       ${_sec ? `
       <div class="bento-card ${secBg} border border-border rounded-2xl p-5">
         <div class="flex items-center justify-between mb-1">
-          <p class="text-xs text-gray-500 uppercase tracking-wider">Sécurité <a href="https://www.data.gouv.fr/fr/datasets/bases-statistiques-communales-departementales-et-regionales-de-la-criminalite/" target="_blank" rel="noopener noreferrer" class="hover:text-gray-300 transition-colors">↗</a></p>
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Sécurité <a href="https://www.data.gouv.fr/fr/datasets/bases-statistiques-communale-departementale-et-regionale-de-la-delinquance-enregistree-par-la-police-et-la-gendarmerie-nationales/" target="_blank" rel="noopener noreferrer" class="ml-0.5 text-sm text-gray-300 hover:text-white transition-colors">↗</a></p>
           <span class="badge ${secBadge}">${_sec.annee}</span>
         </div>
         <p class="text-lg font-bold ${secColor}">Criminalité ${secLabel}</p>
@@ -730,7 +730,7 @@
         </div>
       </div>` : `
       <div class="bento-card bg-card border border-border rounded-2xl p-5">
-        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Sécurité <a href="https://www.data.gouv.fr/fr/datasets/bases-statistiques-communales-departementales-et-regionales-de-la-criminalite/" target="_blank" rel="noopener noreferrer" class="hover:text-gray-300 transition-colors">↗</a></p>
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Sécurité <a href="https://www.data.gouv.fr/fr/datasets/bases-statistiques-communale-departementale-et-regionale-de-la-delinquance-enregistree-par-la-police-et-la-gendarmerie-nationales/" target="_blank" rel="noopener noreferrer" class="ml-0.5 text-sm text-gray-300 hover:text-white transition-colors">↗</a></p>
         <p class="text-2xl font-bold text-gray-600">—</p>
         <p class="text-xs text-gray-600 mt-1">Données SSMSI non disponibles (commune &lt; 2 000 hab.)</p>
       </div>`}
@@ -738,7 +738,7 @@
       ${_air ? `
       <div class="bento-card ${airBg} border border-border rounded-2xl p-5">
         <div class="flex items-center justify-between mb-1">
-          <p class="text-xs text-gray-500 uppercase tracking-wider">Qualité de l'air <a href="https://www.atmo-france.org/" target="_blank" rel="noopener noreferrer" class="hover:text-gray-300 transition-colors">↗</a></p>
+          <p class="text-xs text-gray-500 uppercase tracking-wider">Qualité de l'air <a href="https://www.atmo-france.org/" target="_blank" rel="noopener noreferrer" class="ml-0.5 text-sm text-gray-300 hover:text-white transition-colors">↗</a></p>
           <span class="badge bg-card/50 text-gray-400">${_air.annee}</span>
         </div>
         <p class="text-2xl font-bold ${airColor}">${_air.iqa_moyen.toLocaleString('fr')}<span class="text-sm text-gray-500 ml-1">/ 6</span></p>
@@ -746,7 +746,7 @@
         <p class="text-xs text-gray-600 mt-0.5">Indice ATMO — 1 = meilleur, 6 = pire</p>
       </div>` : `
       <div class="bento-card bg-card border border-border rounded-2xl p-5">
-        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Qualité de l'air <a href="https://www.atmo-france.org/" target="_blank" rel="noopener noreferrer" class="hover:text-gray-300 transition-colors">↗</a></p>
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Qualité de l'air <a href="https://www.atmo-france.org/" target="_blank" rel="noopener noreferrer" class="ml-0.5 text-sm text-gray-300 hover:text-white transition-colors">↗</a></p>
         <p class="text-2xl font-bold text-gray-600">—</p>
         <p class="text-xs text-gray-600 mt-1">Données ATMO non disponibles</p>
       </div>`}
@@ -756,7 +756,7 @@
     ${c.socio ? `
     <div class="bento-card bg-card border border-border rounded-2xl p-5 mb-4">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-sm font-semibold text-white">Qualité de vie <a href="https://www.insee.fr/fr/statistiques/6692392" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-gray-300 transition-colors font-normal">↗</a></h2>
+        <h2 class="text-sm font-semibold text-white">Qualité de vie <a href="https://www.insee.fr/fr/statistiques/6692392" target="_blank" rel="noopener noreferrer" class="ml-1 text-gray-300 hover:text-white transition-colors font-normal text-sm">↗</a></h2>
         <span class="badge bg-emerald-500/20 text-emerald-300">INSEE 2021</span>
       </div>
       <div class="grid grid-cols-3 gap-4">
@@ -764,7 +764,7 @@
         <div>
           <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Revenu médian</p>
           <p class="text-xl font-bold text-white">${Math.round(c.socio.revenu_median).toLocaleString('fr')} €</p>
-          <p class="text-xs text-gray-500 mt-0.5">€/unité conso/an</p>
+          <p class="text-xs text-gray-500 mt-0.5">€ / an (médiane foyer)</p>
         </div>` : ''}
         ${c.socio.taux_chomage != null ? `
         <div>
@@ -783,7 +783,7 @@
 
     <div class="bento-card bg-card border border-border rounded-2xl p-5 mb-4">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-sm font-semibold text-white">Immobilier (DVF) <a href="https://app.dvf.etalab.gouv.fr/" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-gray-300 transition-colors font-normal">↗</a></h2>
+        <h2 class="text-sm font-semibold text-white">Immobilier (DVF) <a href="https://app.dvf.etalab.gouv.fr/" target="_blank" rel="noopener noreferrer" class="ml-1 text-gray-300 hover:text-white transition-colors font-normal text-sm">↗</a></h2>
         <span class="badge bg-indigo-500/20 text-indigo-300">${c.immo?.annee_dvf || 'DVF'}</span>
       </div>
       ${c.immo ? `
@@ -796,7 +796,7 @@
     </div>
 
     <div class="bento-card bg-card border border-border rounded-2xl p-5 mb-4">
-      <h2 class="text-sm font-semibold text-white mb-3">Carburants à proximité <a href="https://www.prix-carburants.gouv.fr/" target="_blank" rel="noopener noreferrer" class="text-gray-500 hover:text-gray-300 transition-colors font-normal">↗</a></h2>
+      <h2 class="text-sm font-semibold text-white mb-3">Carburants à proximité <a href="https://www.prix-carburants.gouv.fr/" target="_blank" rel="noopener noreferrer" class="ml-1 text-gray-300 hover:text-white transition-colors font-normal text-sm">↗</a></h2>
       <div id="fuel-main"><div class="skeleton h-16 rounded-xl"></div></div>
     </div>
 
