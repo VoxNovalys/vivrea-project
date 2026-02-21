@@ -630,6 +630,12 @@
     const airColor  = !_air ? 'text-gray-500' : _iqaKey <= 1 ? 'text-emerald-400' : _iqaKey <= 2 ? 'text-lime-400' : _iqaKey <= 3 ? 'text-amber-400' : _iqaKey <= 4 ? 'text-orange-400' : 'text-rose-400';
     const airBg     = !_air ? 'bg-card'       : _iqaKey <= 1 ? 'bg-emerald-500/10' : _iqaKey <= 2 ? 'bg-lime-500/10' : _iqaKey <= 3 ? 'bg-amber-500/10' : _iqaKey <= 4 ? 'bg-orange-500/10' : 'bg-rose-500/10';
 
+    // VivreScore
+    const _vs      = c.vivrescore ?? null;
+    const vsColor  = _vs == null ? 'text-gray-500'      : _vs >= 75 ? 'text-emerald-400' : _vs >= 50 ? 'text-amber-400'  : 'text-rose-400';
+    const vsBg     = _vs == null ? 'bg-card'             : _vs >= 75 ? 'bg-emerald-500/10': _vs >= 50 ? 'bg-amber-500/10' : 'bg-rose-500/10';
+    const vsBarCol = _vs == null ? 'bg-gray-700'         : _vs >= 75 ? 'bg-emerald-400'   : _vs >= 50 ? 'bg-amber-400'    : 'bg-rose-400';
+
     // URLs de recherche immobilière – LeBonCoin & SeLoger (rayon 30 km)
     const _slug = (c.nom || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
     const _cp   = c.cp || '';
@@ -675,7 +681,16 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
+      <div class="bento-card col-span-2 lg:col-span-1 ${vsBg} border border-border rounded-2xl p-5">
+        <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">VivreScore</p>
+        <p class="text-2xl font-bold ${vsColor}">
+          ${_vs != null ? _vs : '—'}${_vs != null ? '<span class="text-sm font-normal text-gray-500"> /100</span>' : ''}
+        </p>
+        ${_vs != null
+          ? `<div class="mt-2 bg-black/20 rounded-full h-1.5"><div class="bar-fill h-1.5 rounded-full ${vsBarCol}" style="width:${Math.round((_vs - 20) / 80 * 100)}%"></div></div>`
+          : '<p class="text-xs text-gray-600 mt-1">Données insuffisantes</p>'}
+      </div>
       <div class="bento-card bg-card border border-border rounded-2xl p-5">
         <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Population</p>
         <p class="text-2xl font-bold text-white">${c.population ? c.population.toLocaleString('fr') : '—'}</p>
@@ -939,10 +954,18 @@
     const fc  = !fibreOk ? 'text-gray-500' : c.fibre_pct >= 80 ? 'text-emerald-400' : c.fibre_pct >= 40 ? 'text-amber-400' : 'text-rose-400';
     const fbc = !fibreOk ? 'bg-gray-700'   : c.fibre_pct >= 80 ? 'bg-emerald-400'   : c.fibre_pct >= 40 ? 'bg-amber-400'   : 'bg-rose-400';
     const dens = c.surface_km2 && c.population ? Math.round(c.population / c.surface_km2) : null;
+    const _vs     = c.vivrescore ?? null;
+    const vsColor = _vs == null ? 'text-gray-500' : _vs >= 75 ? 'text-emerald-400' : _vs >= 50 ? 'text-amber-400' : 'text-rose-400';
 
     return `
     <div class="space-y-3 fade-up">
       <div class="grid grid-cols-2 gap-2">
+        <div class="col-span-2 bg-card border border-border rounded-xl p-3">
+          <p class="text-xs text-gray-500 mb-0.5">VivreScore</p>
+          <p class="text-base font-bold ${vsColor}">
+            ${_vs != null ? `${_vs}<span class="text-xs font-normal text-gray-500"> /100</span>` : '—'}
+          </p>
+        </div>
         <div class="bg-card border border-border rounded-xl p-3">
           <p class="text-xs text-gray-500 mb-0.5">Population</p>
           <p class="text-base font-bold text-white">${c.population ? c.population.toLocaleString('fr') : '—'}</p>

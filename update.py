@@ -106,6 +106,61 @@ def normalize_fuel_price(raw_str: str) -> Optional[float]:
         return None
 
 
+def compute_vivrescore(
+    fibre_pct: Optional[float],
+    crime_d:   Optional[dict],
+    air_d:     Optional[dict],
+    socio_d:   Optional[dict],
+    chom_v:    Optional[float],
+) -> Optional[int]:
+    """
+    Score synthétique de qualité de vie 20-100.
+    Normalisé sur les dimensions disponibles uniquement.
+    Retourne None si aucune dimension enrichie n'est disponible.
+    Dimensions : fibre (20pts), sécurité (20pts), air (20pts),
+                 revenu médian (20pts), chômage (20pts).
+    Plancher : 20 (chaque dimension rapporte au minimum 4/20 pts).
+    """
+    pts = []
+    max_pts = 0
+
+    if fibre_pct is not None:
+        max_pts += 20
+        pts.append(20 if fibre_pct >= 95 else 16 if fibre_pct >= 80
+                    else 12 if fibre_pct >= 60 else 8 if fibre_pct >= 40 else 4)
+
+    if crime_d:
+        taux = crime_d.get("taux_pour_mille")
+        if taux is None:
+            taux = 0  # absent → pire catégorie (cohérent avec le pattern iqa is None)
+        max_pts += 20
+        pts.append(20 if taux <= 5 else 16 if taux <= 15
+                    else 12 if taux <= 25 else 8 if taux <= 40 else 4)
+
+    if air_d:
+        iqa = air_d.get("iqa_moyen")
+        if iqa is None:
+            iqa = 6  # absent → pire catégorie (évite le falsy trap de `or 6` sur 0.0)
+        max_pts += 20
+        pts.append(20 if iqa <= 1 else 16 if iqa <= 2
+                    else 12 if iqa <= 3 else 8 if iqa <= 4 else 4)
+
+    rev = socio_d.get("revenu_median") if socio_d else None
+    if rev is not None:
+        max_pts += 20
+        pts.append(20 if rev >= 30000 else 16 if rev >= 25000
+                    else 12 if rev >= 20000 else 8 if rev >= 15000 else 4)
+
+    if chom_v is not None:
+        max_pts += 20
+        pts.append(20 if chom_v <= 4 else 16 if chom_v <= 7
+                    else 12 if chom_v <= 10 else 8 if chom_v <= 15 else 4)
+
+    if not pts or max_pts == 0:
+        return None
+    return round(sum(pts) / max_pts * 100)
+
+
 # ---------------------------------------------------------------------------
 # Étape 1 – Communes (API Géo)
 # ---------------------------------------------------------------------------
@@ -861,9 +916,6 @@ def build_index_and_details(
         coords        = centre.get("coordinates", [None, None])
         lat, lon      = coords[1], coords[0]
 
-        # Entrée index léger : [nom, code_insee(str), cp(str), pop(int)]
-        index_entries.append([nom, code_insee, cp_principal, population])
-
         # Entrée détail
         detail: dict = {
             "code_insee":    code_insee,        # String — TOUJOURS
@@ -905,6 +957,13 @@ def build_index_and_details(
             if chom_v is not None:
                 socio_entry["taux_chomage"] = chom_v
             detail["socio"] = socio_entry
+
+        # VivreScore — calculé après TOUTES les dimensions enrichies
+        # Entrée index léger : [nom, code_insee(str), cp(str), pop(int), vivrescore(int|null)]
+        vivrescore = compute_vivrescore(fibre_pct, crime_d, air_d, socio_d, chom_v)
+        index_entries.append([nom, code_insee, cp_principal, population, vivrescore])
+        if vivrescore is not None:
+            detail["vivrescore"] = vivrescore
 
         details_by_dep.setdefault(code_dep, []).append(detail)
 

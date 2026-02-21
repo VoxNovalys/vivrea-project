@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3:*)",
+      "Bash(node -e:*)",
+      "WebFetch(domain:apidf-preprod.cerema.fr)",
+      "WebFetch(domain:consultdf.cerema.fr)",
+      "WebFetch(domain:datafoncier.cerema.fr)",
+      "WebFetch(domain:www.data.gouv.fr)",
+      "WebFetch(domain:doc-datafoncier.cerema.fr)",
+      "Bash(curl:*)",
+      "WebFetch(domain:www.arcep.fr)",
+      "Bash(unzip:*)",
+      "Bash(# From the xxd hex dump we saw clearly. Let me re-read the hex dump and extract field names # by reading 32-byte blocks starting at offset 32 # Extract 768 bytes starting at offset 32 \\(the field descriptor area\\) xxd -s 32 -l 736 /tmp/commune_shp/communes_2025T3.dbf # Parse: for each 32-byte block, the first 11 bytes are the field name # xxd line = offset: byte1 byte2 ... byte16 |chars| # So a 32-byte block = 2 lines of xxd # Let''s extract just the raw bytes and decode od -An -tx1 -j32 -N736 /tmp/commune_shp/communes_2025T3.dbf)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "WebFetch(domain:scrapfly.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.seloger.com)",
+      "WebFetch(domain:data.atmo-france.org)",
+      "WebFetch(domain:static.data.gouv.fr)",
+      "WebFetch(domain:www.insee.fr)",
+      "WebFetch(domain:siddt.inrae.fr)",
+      "Bash(cd \"D:/Sites Web/vivrea-project\" && npx bmad-method status 2>&1)",
+      "Bash(cd \"D:/Sites Web/vivrea-project\" && npx bmad-method install --help 2>&1)",
+      "Bash(cd \"D:/Sites Web/vivrea-project\" && npx bmad-method install --tools claude-code --action compile-agents -y 2>&1)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(node:*)",
+      "Bash(cd:*)",
+      "Bash(head:*)",
+      "Bash(py:*)",
+      "Bash(git:*)",
+      "Bash(pip install:*)"
+    ]
+  }
+}

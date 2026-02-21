@@ -132,6 +132,7 @@
       <button class="sort-btn text-xs px-3 py-1.5 bg-card border border-border rounded-lg hover:border-indigo-500/40 text-gray-400 transition-colors" data-key="pop" onclick="setSort('pop')">Population</button>
       <button class="sort-btn text-xs px-3 py-1.5 bg-card border border-border rounded-lg hover:border-indigo-500/40 text-gray-400 transition-colors" data-key="dep" onclick="setSort('dep')">Département</button>
       <button class="sort-btn text-xs px-3 py-1.5 bg-card border border-border rounded-lg hover:border-indigo-500/40 text-gray-400 transition-colors" data-key="cp" onclick="setSort('cp')">Code postal</button>
+      <button class="sort-btn text-xs px-3 py-1.5 bg-card border border-border rounded-lg hover:border-indigo-500/40 text-gray-400 transition-colors" data-key="score" onclick="setSort('score')">Score</button>
     </div>
 
     <!-- Résumé -->
@@ -193,11 +194,11 @@
   };
 
   // ── État ─────────────────────────────────────────────────────────────────
-  let allCommunes  = [];   // tableau brut de l'index : [nom, code_insee, cp, pop]
+  let allCommunes  = [];   // tableau brut de l'index : [nom, code_insee, cp, pop, vivrescore?]
   let filtered     = [];   // communes après filtres
   let currentPage  = 1;
   let pageSize     = 50;
-  let sortKey      = 'nom';   // 'nom' | 'pop' | 'dep' | 'cp'
+  let sortKey      = 'nom';   // 'nom' | 'pop' | 'dep' | 'cp' | 'score'
   let sortDir      = 'asc';
 
   // ── Chargement ────────────────────────────────────────────────────────────
@@ -274,13 +275,18 @@
       if (sortKey === 'pop') { va = a[3] || 0;  vb = b[3] || 0;  return sortDir === 'asc' ? va - vb : vb - va; }
       if (sortKey === 'dep') { va = getDep(a[1]); vb = getDep(b[1]); return sortDir === 'asc' ? va.localeCompare(vb, 'fr') : vb.localeCompare(va, 'fr'); }
       if (sortKey === 'cp')  { va = a[2] || ''; vb = b[2] || ''; return sortDir === 'asc' ? va.localeCompare(vb, 'fr') : vb.localeCompare(va, 'fr'); }
+      if (sortKey === 'score') {
+        va = a[4] != null ? a[4] : (sortDir === 'asc' ? Infinity : -Infinity);
+        vb = b[4] != null ? b[4] : (sortDir === 'asc' ? Infinity : -Infinity);
+        return sortDir === 'asc' ? va - vb : vb - va;
+      }
       return 0;
     });
   }
 
   function setSort(key) {
     if (sortKey === key) { sortDir = sortDir === 'asc' ? 'desc' : 'asc'; }
-    else { sortKey = key; sortDir = key === 'pop' ? 'desc' : 'asc'; }
+    else { sortKey = key; sortDir = (key === 'pop' || key === 'score') ? 'desc' : 'asc'; }
     sortData();
     updateSortUI();
     render();
@@ -335,6 +341,11 @@
     const pop      = c[3] ? c[3].toLocaleString('fr') : '—';
     const code     = c[1];
     const deptName = esc(DEPT_NAMES[dep] || dep);
+    const score      = c[4] ?? null;
+    const scoreColor = score == null ? 'text-gray-500'
+                     : score >= 75  ? 'text-emerald-400'
+                     : score >= 50  ? 'text-amber-400'
+                     : 'text-rose-400';
 
     return `
       <div class="commune-card bg-card border border-border rounded-2xl p-4"
@@ -350,10 +361,15 @@
         </div>
         <div class="flex items-center justify-between">
           <span class="text-xs font-mono text-gray-600">${esc(code)}</span>
-          <a href="/ville/${esc(code)}" onclick="event.stopPropagation()"
-             class="text-xs text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/50 rounded-lg px-3 py-1 transition-colors">
-            Voir ↗
-          </a>
+          <div class="flex items-center gap-2">
+            ${score != null
+              ? `<span class="text-xs font-bold ${scoreColor}">${score}<span class="text-gray-500 font-normal">/100</span></span>`
+              : ''}
+            <a href="/ville/${esc(code)}" onclick="event.stopPropagation()"
+               class="text-xs text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/50 rounded-lg px-3 py-1 transition-colors">
+              Voir ↗
+            </a>
+          </div>
         </div>
       </div>`;
   }
