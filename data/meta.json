@@ -1,11 +1,15 @@
 {
-  "last_update": "2026-02-20T19:29:56.986639Z",
+  "last_update": "2026-02-21T14:52:49.441394Z",
   "nb_communes": 34875,
-  "version": "2.2",
+  "version": "2.3",
   "sources": {
     "communes": "https://geo.api.gouv.fr",
     "immobilier": "https://apidf-preprod.cerema.fr",
-    "fibre": "https://data.arcep.fr",
-    "carburants": "https://donnees.roulez-eco.fr/opendata/instantane"
+    "fibre": "https://www.data.gouv.fr (ARCEP)",
+    "carburants": "https://donnees.roulez-eco.fr/opendata/instantane",
+    "criminalite": "https://www.data.gouv.fr (SSMSI)",
+    "air": "https://data.atmo-france.org",
+    "revenus": "https://www.insee.fr (Filosofi 2021)",
+    "chomage": "https://www.insee.fr (RP 2021)"
   }
 }
