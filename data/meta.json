@@ -1,5 +1,5 @@
 {
-  "last_update": "2026-02-21T15:46:34.725102Z",
+  "last_update": "2026-02-21T16:13:21.628567Z",
   "nb_communes": 34875,
   "version": "2.3",
   "sources": {
@@ -10,6 +10,6 @@
     "criminalite": "https://www.data.gouv.fr (SSMSI)",
     "air": "https://data.atmo-france.org",
     "revenus": "https://www.insee.fr (Filosofi 2021)",
-    "chomage": "https://www.insee.fr (RP 2021)"
+    "pauvrete": "https://www.insee.fr (Filosofi 2021)"
   }
 }
